@@ -1,7 +1,6 @@
-# pip install numpy pandas matplotlib seaborn scipy fcsparser tqdm adjustText
+# pip install numpy pandas matplotlib seaborn scipy fcsparser tqdm 
 
 import io
-import math
 import os
 import re
 import shutil
@@ -17,13 +16,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from adjustText import adjust_text
 from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.colors import Normalize
 from matplotlib.patches import Patch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from scipy.signal import find_peaks
-from scipy.stats import gaussian_kde, gmean
+from scipy.stats import gmean
 from tqdm import tqdm
 
 # Suppress specific FutureWarnings from seaborn related to pandas deprecation
