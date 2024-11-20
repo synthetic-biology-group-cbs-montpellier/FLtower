@@ -1,27 +1,27 @@
 # pip install numpy pandas matplotlib seaborn scipy fcsparser tqdm adjustText
 
-import sys
+import math
 import os
+import re
+import shutil
+import sys
+import warnings
+from datetime import datetime
+
+import fcsparser
+import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-from scipy.stats import gmean
-from matplotlib.colors import Normalize
-import warnings
-import math
-import re
-import fcsparser
-from datetime import datetime
-from tqdm import tqdm
 from adjustText import adjust_text
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from scipy.stats import gaussian_kde
-from scipy.signal import find_peaks
 from matplotlib.backends.backend_pdf import PdfPages
-import shutil
+from matplotlib.colors import Normalize
 from matplotlib.patches import Patch
-import matplotlib.colors as mcolors
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.signal import find_peaks
+from scipy.stats import gaussian_kde, gmean
+from tqdm import tqdm
 
 # Suppress specific FutureWarnings from seaborn related to pandas deprecation
 warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
@@ -35,6 +35,7 @@ warnings.filterwarnings("ignore", message=".*Intel MKL.*")
 
 # Redirect stderr to devnull
 import io
+
 
 class DevNull(io.IOBase):
     def write(self, *args, **kwargs):
