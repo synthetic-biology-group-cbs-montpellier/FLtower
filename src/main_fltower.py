@@ -1,10 +1,13 @@
 # pip install numpy pandas matplotlib seaborn scipy fcsparser tqdm adjustText
 
+import io
 import math
 import os
 import re
 import shutil
 import sys
+import time
+import traceback
 import warnings
 from datetime import datetime
 
@@ -33,8 +36,6 @@ os.environ['MKL_DISABLE_FAST_MM'] = '1'
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", message=".*Intel MKL.*")
 
-# Redirect stderr to devnull
-import io
 
 
 class DevNull(io.IOBase):
@@ -641,7 +642,6 @@ def plot_triplicate_stats(triplicate_stats, metric_column, output_dir, title=Non
     print(f"Saved triplicate plot for {metric_column} to: {plot_path}")
 
 def process_fcs_files(directory, plots_config, results_directory):
-    import time
     start_time = time.time()
 
     # Create output structure
@@ -1022,7 +1022,6 @@ def compile_summary_report(results_directory, plots_config):
 
 
 if __name__ == "__main__":
-    import time
     start_time = time.time()
 
     try:
@@ -1126,7 +1125,6 @@ if __name__ == "__main__":
         print("Please ensure that the base directory contains valid FCS files.")
     except Exception as e:
         print(f"An unexpected error occurred: {str(e)}")
-        import traceback
         traceback.print_exc()
     finally:
         end_time = time.time()
