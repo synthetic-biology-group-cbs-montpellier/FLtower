@@ -28,6 +28,7 @@ from scipy.stats import gmean
 from tqdm import tqdm
 
 from __version__ import __version__
+from run_args import parse_run_args
 
 # Suppress specific FutureWarnings from seaborn related to pandas deprecation
 warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
@@ -1389,10 +1390,12 @@ def compile_summary_report(results_directory, plots_config):
 def main():
     start_time = time.time()
     print(f"FLtower version: {__version__}")
+    run_args = parse_run_args()
 
     try:
         # Update this path to your FCS files directory
-        base_directory = "Test3"
+        input_folder = run_args.input
+        output_folder = run_args.output
 
         # Configure the plots
         plots_config = [
@@ -1460,12 +1463,12 @@ def main():
 
         # Create results directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        results_directory = os.path.join(base_directory, f"results_{timestamp}")
+        results_directory = os.path.join(output_folder, f"results_{timestamp}")
         os.makedirs(results_directory, exist_ok=True)
         print(f"Created results directory: {results_directory}")
 
         scatter_dfs, histogram_dfs, singlet_df, runtime = process_fcs_files(
-            base_directory, plots_config, results_directory
+            input_folder, plots_config, results_directory
         )
 
         print(f"All results saved in: {results_directory}")
