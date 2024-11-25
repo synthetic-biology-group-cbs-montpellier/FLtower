@@ -27,8 +27,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.stats import gmean
 from tqdm import tqdm
 
-from __version__ import __version__
-from run_args import parse_run_args
+from fltower.__version__ import __version__
+from fltower.run_args import parse_run_args
 
 # Suppress specific FutureWarnings from seaborn related to pandas deprecation
 warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")

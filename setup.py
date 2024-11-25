@@ -13,11 +13,10 @@ def read_version():
 setup(
     name="fltower",
     version=read_version(),
-    package_dir={"": "fltower"},
-    packages=find_packages(where="fltower"),
+    packages=find_packages(),
     entry_points={
         "console_scripts": [
-            "fltower=main_fltower:main",
+            "fltower=fltower.main_fltower:main",
         ],
     },
 )
