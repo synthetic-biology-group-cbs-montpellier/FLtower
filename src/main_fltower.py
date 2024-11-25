@@ -659,19 +659,6 @@ def plot_96well_grid(
     print(f"Saved 96-well grid plot for {metric} to: {plot_path}")
 
 
-def save_script_copy(script_path, results_directory):
-    """
-    Save a copy of the current script in the results directory.
-
-    :param script_path: Path to the current script
-    :param results_directory: Path to the results directory
-    """
-    script_name = os.path.basename(script_path)
-    destination = os.path.join(results_directory, f"script_copy_{script_name}")
-    shutil.copy2(script_path, destination)
-    print(f"Saved a copy of the script to: {destination}")
-
-
 def calculate_triplicate_stats(df, metric_column, well_column="Well"):
     """
     Calculate mean and standard deviation for triplicates, handling partial plates.
@@ -1496,9 +1483,6 @@ def main():
 
         # Compile summary report
         compile_summary_report(results_directory, plots_config)
-
-        # Save a copy of the script
-        save_script_copy(__file__, results_directory)
 
     except FileNotFoundError as e:
         print(f"Error: {e}")
