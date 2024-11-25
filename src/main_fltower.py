@@ -1,4 +1,9 @@
-# pip install numpy pandas matplotlib seaborn scipy fcsparser tqdm
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Main file of FLtower software.
+"""
 
 import io
 import os
@@ -493,12 +498,12 @@ def plot_scatter_with_manual_gates(
             position[0],
             position[1],
             f"{quad_name}\n{percentage:.1f}%",
-            horizontalalignment="right"
-            if "Q1" in quad_name or "Q4" in quad_name
-            else "left",
-            verticalalignment="top"
-            if "Q1" in quad_name or "Q2" in quad_name
-            else "bottom",
+            horizontalalignment=(
+                "right" if "Q1" in quad_name or "Q4" in quad_name else "left"
+            ),
+            verticalalignment=(
+                "top" if "Q1" in quad_name or "Q2" in quad_name else "bottom"
+            ),
             transform=ax.transAxes,
             fontsize=6,
             fontweight="bold",
@@ -655,7 +660,7 @@ def plot_96well_grid(
 def save_script_copy(script_path, results_directory):
     """
     Save a copy of the current script in the results directory.
-    
+
     :param script_path: Path to the current script
     :param results_directory: Path to the results directory
     """
@@ -703,7 +708,7 @@ def plot_triplicate_stats(
         return
 
     # Set the style
-    plt.style.use("seaborn-whitegrid")
+    plt.style.use("seaborn-v0_8-whitegrid")
 
     # Define a custom color palette with 4 colors from inferno colormap
     # custom_palette = ['#000004', '#851255', '#f6715b', '#fcfdbf']
@@ -1384,7 +1389,7 @@ def compile_summary_report(results_directory, plots_config):
     print(f"Summary report saved to: {pdf_path}")
 
 
-if __name__ == "__main__":
+def main():
     start_time = time.time()
 
     try:
@@ -1498,3 +1503,7 @@ if __name__ == "__main__":
         end_time = time.time()
         total_runtime = end_time - start_time
         print(f"\nTotal script runtime: {total_runtime:.2f} seconds")
+
+
+if __name__ == "__main__":
+    main()
