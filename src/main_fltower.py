@@ -1285,8 +1285,7 @@ def compile_summary_report(results_directory, plots_config):
             f"FLtower version: {__version__}",
             ha="center",
             va="center",
-            fontsize=24,
-            fontweight="bold",
+            fontsize=18,
         )
         plt.text(
             0.5,
