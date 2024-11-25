@@ -43,6 +43,12 @@ With the environment activated (*`conda activate fltower`*), you can run FLtower
 fltower
 ```
 
+You can also specify your input data folder and where you want to save outputs:
+```bash
+fltower --input <your/in/data/path> --output <your/output/folder>
+```
+
+
 ---
 
 ## 4. Deactivating and Removing the Environment
