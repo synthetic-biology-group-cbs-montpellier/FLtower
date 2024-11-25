@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 
 def read_version():
-    with open("src/__version__.py", "r") as f:
+    with open("fltower/__version__.py", "r") as f:
         for line in f:
             if line.startswith("__version__"):
                 delim = '"' if '"' in line else "'"
@@ -13,8 +13,8 @@ def read_version():
 setup(
     name="fltower",
     version=read_version(),
-    package_dir={"": "src"},
-    packages=find_packages(where="src"),
+    package_dir={"": "fltower"},
+    packages=find_packages(where="fltower"),
     entry_points={
         "console_scripts": [
             "fltower=main_fltower:main",
