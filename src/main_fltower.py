@@ -27,6 +27,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.stats import gmean
 from tqdm import tqdm
 
+from __version__ import __version__
+
 # Suppress specific FutureWarnings from seaborn related to pandas deprecation
 warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
 
@@ -1283,8 +1285,17 @@ def compile_summary_report(results_directory, plots_config):
 
         plt.text(
             0.5,
-            0.6,
+            0.7,
             "Flow Cytometry Analysis Summary Report",
+            ha="center",
+            va="center",
+            fontsize=24,
+            fontweight="bold",
+        )
+        plt.text(
+            0.5,
+            0.6,
+            f"FLtower version: {__version__}",
             ha="center",
             va="center",
             fontsize=24,
@@ -1391,6 +1402,7 @@ def compile_summary_report(results_directory, plots_config):
 
 def main():
     start_time = time.time()
+    print(f"FLtower version: {__version__}")
 
     try:
         # Update this path to your FCS files directory
