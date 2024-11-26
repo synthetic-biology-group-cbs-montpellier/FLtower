@@ -1,5 +1,7 @@
 # FLtower
 
+![Pytest](https://github.com/synthetic-biology-group-cbs-montpellier/FLtower/actions/workflows/test.yml/badge.svg?branch=main)
+
 This Python project uses **conda** to manage dependencies with an **`environment.yml`** file (ensuring a reproducible and easy-to-setup environment).
 
 ---
