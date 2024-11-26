@@ -10,7 +10,12 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
+        python-version: [3.11]
 
     steps:
       # Clone the code
@@ -21,13 +26,16 @@ jobs:
         uses: conda-incubator/setup-miniconda@v2
         with:
           auto-update-conda: true
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
       - name: Create environment from environment.yml
         run: conda env create -f environment.yml
   
       - name: Install pytest manually
         run: conda install -n fltower pytest -y
+
+      - name: Install fltower locally
+        run: conda run -n fltower pip install -e .
 
       - name: Verify environment
         run: conda run -n fltower conda list 
