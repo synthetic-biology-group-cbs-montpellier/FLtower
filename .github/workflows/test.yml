@@ -25,7 +25,10 @@ jobs:
 
       - name: Create environment from environment.yml
         run: conda env create -f environment.yml
-      
+  
+      - name: Install pytest manually
+        run: conda install -n fltower pytest -y
+
       - name: Verify environment
         run: conda run -n fltower conda list 
 
