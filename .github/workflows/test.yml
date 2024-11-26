@@ -24,11 +24,10 @@ jobs:
           python-version: "3.11"
 
       - name: Create environment from environment.yml
-        run: |
-          conda env create -f environment.yml
-          conda init
+        run: conda env create -f environment.yml
+      
+      - name: Verify environment
+        run: conda run -n fltower conda list 
 
       - name: Run tests with pytest
-        run: |
-          conda activate fltower
-          pytest
+        run: conda run -n fltower pytest
