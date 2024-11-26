@@ -28,7 +28,7 @@ from scipy.stats import gmean
 from tqdm import tqdm
 
 from fltower.__version__ import __version__
-from fltower.data_manager import load_parameters
+from fltower.data_manager import load_parameters, save_parameters
 from fltower.run_args import parse_run_args
 
 # Suppress specific FutureWarnings from seaborn related to pandas deprecation
@@ -1403,6 +1403,8 @@ def main():
         results_directory = os.path.join(output_folder, f"results_{timestamp}")
         os.makedirs(results_directory, exist_ok=True)
         print(f"Created results directory: {results_directory}")
+        used_params = save_parameters(plots_config, results_directory, "used_parameters.json")
+        print(f"Save used parameters: {used_params}")
 
         scatter_dfs, histogram_dfs, singlet_df, runtime = process_fcs_files(
             input_folder, plots_config, results_directory

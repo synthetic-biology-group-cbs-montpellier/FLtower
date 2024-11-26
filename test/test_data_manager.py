@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from fltower.data_manager import load_parameters
+from fltower.data_manager import load_parameters, save_parameters
 
 
 @pytest.fixture
@@ -118,3 +118,44 @@ def test_load_parameters_invalid_json():
         # Expect a JSONDecodeError
         with pytest.raises(json.JSONDecodeError):
             load_parameters(input_dir=temp_dir, parameters_file=parameters_path)
+
+def test_save_parameters():
+    """Test saving parameters to a file."""
+    # Example parameters
+    parameters = {
+        "config_1": {"type": "scatter", "x_param": "BL1-H", "y_param": "YL2-H"},
+        "config_2": {"type": "histogram", "x_param": "BL1-H"},
+    }
+
+    # Create a temporary directory for testing
+    with TemporaryDirectory() as temp_dir:
+        # Call the function
+        saved_file = save_parameters(parameters, temp_dir)
+
+        # Verify the file exists
+        assert os.path.exists(saved_file)
+
+        # Verify the contents of the file
+        with open(saved_file, "r") as f:
+            saved_data = json.load(f)
+        assert saved_data == parameters
+
+
+def test_save_parameters_custom_file_name():
+    """Test saving parameters with a custom file name."""
+    parameters = {"key": "value"}
+    custom_file_name = "custom_params.json"
+
+    with TemporaryDirectory() as temp_dir:
+        saved_file = save_parameters(parameters, temp_dir, file_name=custom_file_name)
+
+        # Verify the custom file exists
+        assert os.path.exists(saved_file)
+
+        # Verify the file name
+        assert os.path.basename(saved_file) == custom_file_name
+
+        # Verify the contents of the file
+        with open(saved_file, "r") as f:
+            saved_data = json.load(f)
+        assert saved_data == parameters

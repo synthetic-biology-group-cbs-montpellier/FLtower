@@ -32,3 +32,34 @@ def load_parameters(input_dir, parameters_file=None):
     # Load the JSON data
     with open(file_path, "r") as f:
         return json.load(f)
+
+
+def save_parameters(parameters, output_folder, file_name="parameters.json"):
+    """
+    Save parameters to a JSON file in the specified output folder.
+
+    Parameters
+    ----------
+    parameters : dict
+        The parameters to save.
+    output_folder : str
+        The directory where the file will be saved.
+    file_name : str, optional
+        The name of the file to save (default is "parameters.json").
+
+    Returns
+    -------
+    str
+        The path to the saved file.
+    """
+    # Ensure the output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Define the full path to the file
+    file_path = os.path.join(output_folder, file_name)
+
+    # Save the parameters to the file
+    with open(file_path, "w") as f:
+        json.dump(parameters, f, indent=4)
+
+    return file_path
