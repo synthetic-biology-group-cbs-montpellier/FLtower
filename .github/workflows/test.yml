@@ -25,9 +25,8 @@ jobs:
 
       - name: Create environment from environment.yml
         run: |
-          conda init
           conda env create -f environment.yml
-          conda activate fltower
+          conda init
 
       - name: Run tests with pytest
         run: |
