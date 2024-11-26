@@ -28,6 +28,7 @@ from scipy.stats import gmean
 from tqdm import tqdm
 
 from fltower.__version__ import __version__
+from fltower.data_manager import load_parameters
 from fltower.run_args import parse_run_args
 
 # Suppress specific FutureWarnings from seaborn related to pandas deprecation
@@ -908,7 +909,7 @@ def process_fcs_files(directory, plots_config, results_directory):
     # Create figures for each plot configuration
     figs = {}
     axes = {}
-    for config in plots_config:
+    for config in plots_config.values():
         plot_key = f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
         fig, ax = plt.subplots(
             num_rows + 1,
@@ -1047,7 +1048,7 @@ def process_fcs_files(directory, plots_config, results_directory):
                 ax_singlet = axes_singlets[row, col]
                 plot_singlet_gate(data, ax=ax_singlet, file_name=well_key)
 
-                for config in plots_config:
+                for config in plots_config.values():
                     plot_key = f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
                     if config["type"] == "scatter":
                         # Process scatter plot
@@ -1149,7 +1150,7 @@ def process_fcs_files(directory, plots_config, results_directory):
         print(f"Saved singlet statistics to: {singlet_csv_path}")
 
         # Process triplicate plots based on configuration
-        for config in plots_config:
+        for config in plots_config.values():
             plot_key = (
                 f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
             )
@@ -1225,7 +1226,7 @@ def process_fcs_files(directory, plots_config, results_directory):
         print(f"Saved singlet gates plot: {singlet_plot_path}")
 
         # Generate and save 96-well plots
-        for config in plots_config:
+        for config in plots_config.values():
             plot_key = (
                 f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
             )
@@ -1307,7 +1308,7 @@ def compile_summary_report(results_directory, plots_config):
         plt.close()
 
         # Compile main plots (histogram, scatter, singlets)
-        for config in plots_config:
+        for config in plots_config.values():
             plot_key = (
                 f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
             )
@@ -1329,7 +1330,7 @@ def compile_summary_report(results_directory, plots_config):
                 print(f"Warning: {plot_key} plot not found at {plot_path}")
 
         # Add each 96-well plot to the PDF
-        for config in plots_config:
+        for config in plots_config.values():
             if "96well_plots" in config:
                 parameter_name = config["x_param"].split("-")[
                     0
@@ -1357,7 +1358,7 @@ def compile_summary_report(results_directory, plots_config):
                         )
 
         # Add triplicate plots to the PDF
-        for config in plots_config:
+        for config in plots_config.values():
             if "triplicate_plots" in config:
                 plot_key = (
                     f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
@@ -1393,73 +1394,9 @@ def main():
     run_args = parse_run_args()
 
     try:
-        # Update this path to your FCS files directory
         input_folder = run_args.input
         output_folder = run_args.output
-
-        # Configure the plots
-        plots_config = [
-            {
-                "type": "scatter",
-                "x_param": "BL1-H",
-                "y_param": "YL2-H",
-                "x_scale": "log",
-                "y_scale": "log",
-                "xlim": (1, 2e5),
-                "ylim": (1, 2e5),
-                "cmap": "inferno",
-                "gridsize": 100,
-                "scatter_type": "density",
-                "quadrant_gates": {
-                    "x": 2600,  # X-axis threshold for quadrant gates
-                    "y": 2000,  # Y-axis threshold for quadrant gates
-                },
-                "96well_plots": [
-                    {"metric": "Q3_Percentage", "title": "OFF cells Percentage"},
-                    {"metric": "Q2_Percentage", "title": "RFP cells Percentage"},
-                    {"metric": "Q4_Percentage", "title": "GFP cells Percentage"},
-                    {
-                        "metric": "Global_BL1-H_Median",
-                        "title": "Scatter Plot-GFP-RFP:GFP Median",
-                    },
-                ],
-                "triplicate_plots": [
-                    {"metric": "Q3_Percentage", "title": "OFF cells Percentage"},
-                    {"metric": "Q2_Percentage", "title": "RFP cells Percentage"},
-                    {"metric": "Q4_Percentage", "title": "GFP cells Percentage"},
-                ],
-            },
-            {
-                "type": "histogram",
-                "x_param": "BL1-H",
-                "x_scale": "log",
-                "xlim": (1, 2e5),
-                "color": "seagreen",
-                "kde": True,
-                "gates": [(10, 800), (800, 1e5)],
-                "96well_plots": [
-                    {"metric": "Global_Median", "title": "GFP Histogram-Median"},
-                ],
-                "triplicate_plots": [
-                    {"metric": "Global_Median", "title": "GFP-Median"},
-                ],
-            },
-            {
-                "type": "histogram",
-                "x_param": "YL2-H",
-                "x_scale": "log",
-                "xlim": (1, 2e5),
-                "color": "coral",
-                "kde": True,
-                "gates": [(10, 800), (800, 1e5)],
-                "96well_plots": [
-                    {"metric": "Global_Median", "title": "RFP Histogram-Median"},
-                ],
-                "triplicate_plots": [
-                    {"metric": "Global_Median", "title": "RFP-Median"},
-                ],
-            },
-        ]
+        plots_config = load_parameters(input_folder, run_args.parameters)
 
         # Create results directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
