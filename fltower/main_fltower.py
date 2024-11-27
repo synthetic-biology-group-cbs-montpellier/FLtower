@@ -1388,10 +1388,19 @@ def compile_summary_report(results_directory, plots_config):
     print(f"Summary report saved to: {pdf_path}")
 
 
-def main():
+def main(command_line_arguments=None):
+    """Main function of FLtower
+
+    Parameters
+    ----------
+    command_line_arguments : List[str], optional
+        Used to give inputs for the runtime when you call this function like a module.
+        For example, to test the FLtower run from tests folder.
+        By default None.
+    """
     start_time = time.time()
     print(f"FLtower version: {__version__}")
-    run_args = parse_run_args()
+    run_args = parse_run_args(command_line_arguments)
 
     try:
         input_folder = run_args.input

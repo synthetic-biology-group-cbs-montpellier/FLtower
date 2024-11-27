@@ -4,8 +4,14 @@ import os
 from argparse import ArgumentParser
 
 
-def parse_run_args():
+def parse_run_args(command_line_arguments):
     """Parse run arguments
+
+    Parameters
+    ----------
+    command_line_arguments : List[str]
+        Used to give inputs for the runtime when you call this function like a module.
+        For example, to test the FLtower run from tests folder.
 
     Returns
     -------
@@ -35,4 +41,4 @@ def parse_run_args():
         help="Path of the parameters.json file.\nDEFAULT: FLtower expect this file inside your current directory",
     )
 
-    return parser.parse_args()
+    return parser.parse_args(command_line_arguments)
