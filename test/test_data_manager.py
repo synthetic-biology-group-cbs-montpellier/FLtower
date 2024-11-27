@@ -98,12 +98,13 @@ def test_load_parameters_file_not_found():
     with TemporaryDirectory() as temp_dir:
         # Ensure no parameters.json file exists
         non_existent_path = os.path.join(temp_dir, "parameters.json")
-
-        # Expect a FileNotFoundError
+        # Escape backslashes or use a raw string for the regex match
+        escaped_path = non_existent_path.replace("\\", "\\\\")  # Escape backslashes
         with pytest.raises(
             FileNotFoundError,
-            match=rf"'parameters.json' file not found: {non_existent_path}",
+            match=rf"'parameters.json' file not found: {escaped_path}",
         ):
+            # Expect a FileNotFoundError
             load_parameters(input_dir=temp_dir)
 
 
