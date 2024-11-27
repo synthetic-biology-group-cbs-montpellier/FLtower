@@ -8,19 +8,19 @@
 |:-:|:-:|:-:|:-:|
 |**compatibility**|Yes|Yes|Yes| 
 
-### Install conda
+### [Optional] Install conda
 
 *We use conda environment to avoid version problem between FLtower dependencies and other applications.*
+
 We recommend to download the lighter version via [Miniconda](https://docs.anaconda.com/miniconda/install/#quick-command-line-install) (if you only intend to use FLtower without developing new feature).
 
-
----
-
-### Create the environment
+### [Optional] Create the environment
 ```bash
 conda create -n fltower python=3.11
 conda activate fltower
 ```
+
+---
 
 ### Install FLtower from PyPi
    ```bash
@@ -57,7 +57,7 @@ You can find a [template here](https://raw.githubusercontent.com/synthetic-biolo
 
 ### Running FLtower *(5~10 min)*
 
-*Remember to activate your environment* (*`conda activate fltower`*), 
+*If you use it, remember to activate your environment* (*`conda activate fltower`*), 
 
 #### Basic run
 
