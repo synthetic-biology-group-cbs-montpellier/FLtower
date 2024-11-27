@@ -1,5 +1,13 @@
 import json
 import os
+import shutil
+
+
+def save_parameters_template(input_dir):
+    template_filepath = os.path.join(input_dir, "parameters_template.json")
+    module_dir = os.path.dirname(__file__)
+    source_filepath = os.path.join(module_dir, "resource", "parameters.json")
+    return shutil.copyfile(source_filepath, template_filepath)
 
 
 def load_parameters(input_dir, parameters_file=None):
@@ -27,7 +35,10 @@ def load_parameters(input_dir, parameters_file=None):
 
     # Check if the file exists
     if not os.path.exists(file_path):
-        raise FileNotFoundError(f"'parameters.json' file not found: {file_path}")
+        dest_path = save_parameters_template(input_dir)
+        raise FileNotFoundError(
+            f"'parameters.json' file not found: {file_path}\nAn example is saved to help you: {dest_path}"
+        )
 
     # Load the JSON data
     with open(file_path, "r") as f:

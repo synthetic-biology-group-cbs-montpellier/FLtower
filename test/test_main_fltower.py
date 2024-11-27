@@ -23,6 +23,7 @@ def compare_csv_files(file1, file2):
     # Ensure columns and rows match
     pd.testing.assert_frame_equal(df1, df2, check_dtype=False)
 
+
 def get_all_filepaths(folder_path):
     """
     Get the file paths of all files in a folder, including subfolders.
@@ -64,6 +65,7 @@ def associate_files(generated_csv, reference_csv):
     right_only : list of str
         List of files present only in `reference_csv`.
     """
+
     # Normalize file paths to compare relative paths
     def _normalize(filepath):
         filebase = os.path.basename(filepath)
@@ -87,9 +89,10 @@ def associate_files(generated_csv, reference_csv):
 
     return common_files, left_only, right_only
 
+
 def compare_directories(generated_dir, reference_dir):
     """Compare generated CSV files with reference directory."""
-    
+
     generated_files = get_all_filepaths(generated_dir)
     reference_files = get_all_filepaths(reference_dir)
 
@@ -104,7 +107,6 @@ def compare_directories(generated_dir, reference_dir):
     # Filter files to exclude PNG, JSON and PDF
     generated_csv = _filter_files(generated_files)
     reference_csv = _filter_files(reference_files)
-
 
     common_files, left_only, right_only = associate_files(generated_csv, reference_csv)
 
@@ -124,8 +126,17 @@ def temporary_output_dir():
         yield temp_dir
 
 
-def test_non_regression(temporary_output_dir):
+def test_normal_pipeline(temporary_output_dir):
     """Test non-regression by comparing script outputs to reference outputs."""
     main(["-I", REFERENCE_INPUT_DIR, "-O", temporary_output_dir])
     # Compare the generated output to the reference output
     compare_directories(temporary_output_dir, REFERENCE_OUTPUT_DIR)
+
+
+def test_run_without_parameters_file(temporary_output_dir):
+    """Test helping feature when user doesn't provide any params file."""
+    main(["-I", temporary_output_dir, "-O", temporary_output_dir])
+    # Verify the file exists
+    assert os.path.exists(
+        os.path.join(temporary_output_dir, "parameters_template.json")
+    )
