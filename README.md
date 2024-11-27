@@ -2,117 +2,119 @@
 
 ![Pytest](https://github.com/synthetic-biology-group-cbs-montpellier/FLtower/actions/workflows/test.yml/badge.svg?branch=main)
 
-This Python project uses **conda** to manage dependencies with an **`environment.yml`** file (ensuring a reproducible and easy-to-setup environment).
+## 1. Installation
+
+|OS|Linux|Windows|Mac|
+|:-:|:-:|:-:|:-:|
+|**compatibility**|Yes|Yes|Yes| 
+
+### Install conda
+
+*We use conda environment to avoid version problem between FLtower dependencies and other applications.*
+We recommend to download the lighter version via [Miniconda](https://docs.anaconda.com/miniconda/install/#quick-command-line-install) (if you only intend to use FLtower without developing new feature).
+
 
 ---
 
-## **1. Prerequisites**
-Before starting, make sure:
-1. **Conda** is installed on your system. If not, download it via [Miniconda](https://docs.anaconda.com/miniconda/install/#quick-command-line-install).
+### Create the environment
+```bash
+conda create -n fltower python=3.11
+conda activate fltower
+```
 
-2. You have access to a terminal or command prompt.
-
-
-## **2. Installing the Environment**
-
-### **a) Create the Environment**
-1. Clone the project repository:
+### Install FLtower from PyPi
    ```bash
-   git clone https://github.com/synthetic-biology-group-cbs-montpellier/FLtower.git
-   cd FLtower
+   pip install fltower
    ```
 
-2. Create the conda environment from the **`environment.yml`** file:
-   ```bash
-   conda env create -f environment.yml
-   ```
-
-3. Activate the environment:
-   ```bash
-   conda activate fltower
-   ```
-
-4. Install FLtower package:
-   ```bash
-   pip install -e .
-   ```
+To check if FLtower is well installed, run:
+```bash
+fltower --help
+```
 
 
-## **3. Usage**
+## **2. Usage**
 
-With the environment activated (*`conda activate fltower`*), you can run FLtower script from your data folder (*`cd <path>`*) with just this keyword:
+### Folder structure
+
+Your input data folder should look like this:
+
+```
+my_root/
+├── my_data/
+│   ├── RBS library - 7975 - Caff_Experiment_M9 - 7975 - P1 - Caff_A1.fcs
+│   ├── ...
+│   ├── RBS library - 7975 - Caff_Experiment_M9 - 7975 - P1 - Caff_H12.fcs
+│   └── parameters.json
+```
+With 96 `FCS` files and one `parameters.json` file.
+
+### Parameter file
+
+The parameter file brings together all the plot configurations.
+
+You can find a [template here](https://raw.githubusercontent.com/synthetic-biology-group-cbs-montpellier/FLtower/refs/heads/main/fltower/resource/parameters.json), or just run `fltower` inside a folder without any `parameters.json` file and the software will generate for you a `parameters_template.json`.
+
+### Running FLtower *(5~10 min)*
+
+*Remember to activate your environment* (*`conda activate fltower`*), 
+
+#### Basic run
+
+You can run FLtower from your data folder (in this example: *`cd my_root/my_data/`*) with just this keyword:
+
 ```bash
 fltower
 ```
 
-You can also specify your input data folder and where you want to save outputs:
-```bash
-fltower --input <your/in/data/path> --output <your/output/folder>
+And the software will generate a `results_<DATE>_<TIME>` folder inside your input folder like this:
+
+```
+my_root/
+└── my_data/
+    ├── RBS library - 7975 - Caff_Experiment_M9 - 7975 - P1 - Caff_A1.fcs
+    ├── ...
+    ├── RBS library - 7975 - Caff_Experiment_M9 - 7975 - P1 - Caff_H12.fcs
+    ├── parameters.json
+    └── results_20241127_094857/
+        ├── plots/
+        ├── .../
+        ├── statistics/
+        ├── summary_report.pdf
+        └── used_parameters.json
 ```
 
+#### [Optional] Custom run
+
+You can also run FLtower from anywhere by specifying your input data folder, where you want to save outputs and where are located the parameter file:
+
+```bash
+fltower --input my_root/my_data/ --output my_root/OUTPUT/ --parameters my_root/parameters.json
+```
+Or with the shortcuts:
+
+```bash
+fltower -I my_root/my_data/ -O my_root/OUTPUT/ -P my_root/parameters.json
+```
+Then your folder structure should look like this:
+```
+my_root/
+├── parameters.json
+├── my_data/
+│   ├── RBS library - 7975 - Caff_Experiment_M9 - 7975 - P1 - Caff_A1.fcs
+│   ├── ...
+│   └── RBS library - 7975 - Caff_Experiment_M9 - 7975 - P1 - Caff_H12.fcs
+└── OUTPUT/
+    └── results_20241127_094857/
+        ├── plots/
+        ├── .../
+        ├── statistics/
+        ├── summary_report.pdf
+        └── used_parameters.json
+```
 
 ---
 
-## 4. Deactivating and Removing the Environment
-
-### a) Deactivate the Environment
-To deactivate the currently active environment, run:
-```bash
-conda deactivate
-```
-
-### b) Remove the Environment
-To completely remove the environment:
-```bash
-conda env remove -n my_project_env
-```
-
----
-
-## 5. Recreating or Updating the Environment
-
-### a) Update an Existing Environment
-
-If changes have been made to **`environment.yml`**, update the environment:
-```bash
-conda env update -f environment.yml
-```
-
-### b) Recreate the Environment
-If needed, you can delete and recreate the environment:
-1. Remove the existing environment:
-   ```bash
-   conda env remove -n my_project_env
-   ```
-
-2. Recreate it:
-   ```bash
-   conda env create -f environment.yml
-   ```
-
----
-
-## **Support**
+## 3. **Support**
 
 If you encounter any issues or have questions, [open an issue in the GitHub repository](https://github.com/synthetic-biology-group-cbs-montpellier/FLtower/issues).
-
-
----
-
-## **Contributor's section**
-
-### Updating Dependencies
-
-1. Add a New Dependency:
-   ```bash
-   conda install <package_name>
-   ```
-   or, for Python-only dependencies not available in conda:
-   ```bash
-   pip install <package_name>
-   ```
-
-2. Export the updated **`environment.yml`** file:
-   ```bash
-   conda env export -f environment.yml
-   ```
