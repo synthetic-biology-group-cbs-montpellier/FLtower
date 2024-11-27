@@ -102,7 +102,7 @@ def test_load_parameters_file_not_found():
         # Expect a FileNotFoundError
         with pytest.raises(
             FileNotFoundError,
-            match=f"'parameters.json' file not found: {non_existent_path}",
+            match=rf"'parameters.json' file not found: {non_existent_path}",
         ):
             load_parameters(input_dir=temp_dir)
 
