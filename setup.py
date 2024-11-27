@@ -10,6 +10,16 @@ def read_version():
     raise RuntimeError("Unable to find version string.")
 
 
+REQUIREMENTS = [
+    "numpy>=1.26.4",
+    "pandas>=2.2.3",
+    "matplotlib==3.9.2",
+    "seaborn==0.13.2",
+    "scipy==1.14.1",
+    "fcsparser==0.2.8",
+    "tqdm==4.67.1",
+]
+
 setup(
     name="fltower",
     version=read_version(),
@@ -19,4 +29,5 @@ setup(
             "fltower=fltower.main_fltower:main",
         ],
     },
+    install_requires=REQUIREMENTS,
 )

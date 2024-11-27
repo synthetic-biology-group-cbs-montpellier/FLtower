@@ -1403,7 +1403,9 @@ def main():
         results_directory = os.path.join(output_folder, f"results_{timestamp}")
         os.makedirs(results_directory, exist_ok=True)
         print(f"Created results directory: {results_directory}")
-        used_params = save_parameters(plots_config, results_directory, "used_parameters.json")
+        used_params = save_parameters(
+            plots_config, results_directory, "used_parameters.json"
+        )
         print(f"Save used parameters: {used_params}")
 
         scatter_dfs, histogram_dfs, singlet_df, runtime = process_fcs_files(

@@ -119,6 +119,7 @@ def test_load_parameters_invalid_json():
         with pytest.raises(json.JSONDecodeError):
             load_parameters(input_dir=temp_dir, parameters_file=parameters_path)
 
+
 def test_save_parameters():
     """Test saving parameters to a file."""
     # Example parameters
