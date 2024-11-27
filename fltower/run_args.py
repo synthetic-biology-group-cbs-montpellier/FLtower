@@ -4,7 +4,7 @@ import os
 from argparse import ArgumentParser
 
 
-def parse_run_args(command_line_arguments):
+def parse_run_args(command_line_arguments=None):
     """Parse run arguments
 
     Parameters
