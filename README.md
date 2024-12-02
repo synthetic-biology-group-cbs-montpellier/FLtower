@@ -6,7 +6,7 @@
 
 |OS|Linux|Windows|Mac|
 |:-:|:-:|:-:|:-:|
-|**compatibility**|Yes|Yes|Yes| 
+|**compatibility**|Yes|Yes|Yes|
 
 ### [Optional] Install conda
 
@@ -57,7 +57,7 @@ You can find a [template here](https://raw.githubusercontent.com/synthetic-biolo
 
 ### Running FLtower *(5~10 min)*
 
-*If you use it, remember to activate your environment* (*`conda activate fltower`*), 
+*If you use it, remember to activate your environment* (*`conda activate fltower`*),
 
 #### Basic run
 

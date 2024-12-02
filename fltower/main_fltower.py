@@ -8,7 +8,6 @@ Main file of FLtower software.
 import io
 import os
 import re
-import shutil
 import sys
 import time
 import traceback
@@ -211,7 +210,7 @@ def plot_singlet_gate(data, ssc_a="SSC-A", ssc_h="SSC-H", ax=None, file_name=Non
     # Add colorbar
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.1)
-    cbar = plt.colorbar(hb, cax=cax)
+    plt.colorbar(hb, cax=cax)
 
     # Adjust colorbar height to match the plot area
     plt.draw()  # This is necessary to update the plot layout
@@ -740,7 +739,7 @@ def plot_triplicate_stats(
     )
 
     # Plot error bars (only positive)
-    error_containers = ax.errorbar(
+    ax.errorbar(
         positions,
         means,
         yerr=[np.zeros_like(stds), stds],
@@ -989,9 +988,6 @@ def process_fcs_files(directory, plots_config, results_directory):
         fig.tight_layout(
             rect=[0, 0, 1, 0.95]
         )  # Adjust rect to leave less space for suptitle
-
-    # Initialize a set to keep track of used positions
-    used_positions = set()
 
     # Initialize a set to keep track of wells with data
     wells_with_data = set()

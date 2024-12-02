@@ -1,5 +1,4 @@
 import os
-from filecmp import dircmp
 from tempfile import TemporaryDirectory
 
 import pandas as pd

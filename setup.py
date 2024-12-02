@@ -1,6 +1,5 @@
 from setuptools import find_packages, setup
 
-
 # package description
 DESCRIPTION = "Software for cytometry analysis."
 
@@ -34,13 +33,13 @@ setup(
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
-      license='GNU GPL v3',
+    license="GNU GPL v3",
     entry_points={
         "console_scripts": [
             "fltower=fltower.main_fltower:main",
         ],
     },
     install_requires=REQUIREMENTS,
-    include_package_data=True,  
+    include_package_data=True,
     packages=find_packages(),
 )
