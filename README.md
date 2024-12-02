@@ -1,6 +1,7 @@
 # FLtower
 
 ![Pytest](https://github.com/synthetic-biology-group-cbs-montpellier/FLtower/actions/workflows/test.yml/badge.svg?branch=main)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 
 ## 1. Installation
 
