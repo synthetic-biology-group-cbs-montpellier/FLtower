@@ -113,6 +113,14 @@ my_root/
         ├── summary_report.pdf
         └── used_parameters.json
 ```
+---
+
+
+### Compare 2 FLtower results
+
+```
+fltower_compare -P parameters.json -O /home/Documents/test --exp1_dir Plate_1_6h/ --exp2_dir Plate_1_24h/  --exp1_label 6h --exp2_label 24h
+```
 
 ---
 

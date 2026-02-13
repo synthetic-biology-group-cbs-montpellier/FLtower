@@ -37,6 +37,7 @@ setup(
     entry_points={
         "console_scripts": [
             "fltower=fltower.main_fltower:main",
+            "fltower_compare=fltower.fltower_compare:main",
         ],
     },
     install_requires=REQUIREMENTS,
