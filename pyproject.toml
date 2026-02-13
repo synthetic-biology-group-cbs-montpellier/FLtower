@@ -1,3 +1,36 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["version"]
+name = "fltower"
+description = "Software for cytometry analysis."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "GNU GPL v3" }
+
+authors = [{ name = "Xavier Devos" }]
+
+dependencies = [
+    "numpy>=1.26.4",
+    "pandas>=2.2.3",
+    "matplotlib==3.9.2",
+    "seaborn==0.13.2",
+    "scipy==1.14.1",
+    "fcsparser==0.2.8",
+    "tqdm==4.67.1",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "fltower.__version__.__version__" }
+
+[project.scripts]
+fltower = "fltower.main_fltower:main"
+fltower-compare = "fltower.fltower_compare:main"
+
+[tool.setuptools]
+packages = ["fltower"]
+
+[tool.setuptools.package-data]
+fltower = ["resource/*.json"]
