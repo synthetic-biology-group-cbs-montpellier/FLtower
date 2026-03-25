@@ -654,7 +654,7 @@ def plot_96well_grid(
     else:
         plot_filename = f"{metric.replace(' ', '_').lower()}_96well_grid.png"
     plot_path = os.path.join(well_plots_dir, plot_filename)
-    plt.savefig(plot_path, dpi=300, bbox_inches="tight")
+    plt.savefig(plot_path, dpi=150, bbox_inches="tight")
     plt.close()
 
     print(f"Saved 96-well grid plot for {metric} to: {plot_path}")
@@ -853,7 +853,7 @@ def plot_triplicate_stats(
     plt.tight_layout()
     plot_filename = f"{title.replace(' ', '_').lower()}_triplicate_stats.png"
     plot_path = os.path.join(output_dir, plot_filename)
-    plt.savefig(plot_path, dpi=300, bbox_inches="tight")
+    plt.savefig(plot_path, dpi=150, bbox_inches="tight")
     plt.close()
     print(f"Saved triplicate plot for {metric_column} to: {plot_path}")
 
@@ -1208,7 +1208,7 @@ def process_fcs_files(directory, plots_config, results_directory):
         for plot_key, fig in figs.items():
             plot_filename = f"{plot_key}_plot_{os.path.basename(results_directory)}.png"
             plot_path = os.path.join(plots_dir, plot_filename)
-            fig.savefig(plot_path, dpi=300, bbox_inches="tight")
+            fig.savefig(plot_path, dpi=150, bbox_inches="tight")
             plt.close(fig)
             print(f"Saved {plot_key} plot: {plot_path}")
 
@@ -1217,7 +1217,7 @@ def process_fcs_files(directory, plots_config, results_directory):
             f"singlet_gates_plot_{os.path.basename(results_directory)}.png"
         )
         singlet_plot_path = os.path.join(plots_dir, singlet_plot_filename)
-        fig_singlets.savefig(singlet_plot_path, dpi=300, bbox_inches="tight")
+        fig_singlets.savefig(singlet_plot_path, dpi=150, bbox_inches="tight")
         plt.close(fig_singlets)
         print(f"Saved singlet gates plot: {singlet_plot_path}")
 
@@ -1320,7 +1320,7 @@ def compile_summary_report(results_directory, plots_config):
                 ax.axis("off")
                 plt.title(f"{plot_key.capitalize()} Plot", fontsize=16)
                 plt.tight_layout()
-                pdf.savefig(fig, orientation="landscape", dpi=300)
+                pdf.savefig(fig, orientation="landscape", dpi=150)
                 plt.close(fig)
             else:
                 print(f"Warning: {plot_key} plot not found at {plot_path}")
