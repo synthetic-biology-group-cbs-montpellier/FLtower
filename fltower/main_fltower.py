@@ -5,7 +5,6 @@
 Main file of FLtower software.
 """
 
-import io
 import os
 import re
 import sys
@@ -35,18 +34,15 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
 
 # Suppress Intel MKL warnings
 os.environ["MKL_DISABLE_FAST_MM"] = "1"
-
-# Suppress specific warnings
-warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", message=".*Intel MKL.*")
 
+# Suppress RuntimeWarnings from numerical libraries (log of zero, etc.)
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="numpy")
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="scipy")
 
-class DevNull(io.IOBase):
-    def write(self, *args, **kwargs):
-        pass
-
-
-sys.stderr = DevNull()
+# Singlet gate thresholds (SSC-H / SSC-A ratio bounds)
+SINGLET_RATIO_LOWER = 0.7
+SINGLET_RATIO_UPPER = 2.0
 
 
 def read_fcs(file_path):
@@ -139,7 +135,9 @@ def remove_doublets(data, ssc_a="SSC-A", ssc_h="SSC-H"):
         return data, 0, len(data), 0
 
     ssc_ratio = data_filtered[ssc_h] / data_filtered[ssc_a]
-    singlet_mask = (ssc_ratio >= 0.7) & (ssc_ratio <= 2.0)  # Adjust as needed
+    singlet_mask = (ssc_ratio >= SINGLET_RATIO_LOWER) & (
+        ssc_ratio <= SINGLET_RATIO_UPPER
+    )
     singlets = data_filtered[singlet_mask]
     total_events = len(data)
     singlet_events = len(singlets)
@@ -168,12 +166,10 @@ def plot_singlet_gate(data, ssc_a="SSC-A", ssc_h="SSC-H", ax=None, file_name=Non
     # Calculate the ratio of SSC-H to SSC-A
     ssc_ratio = data_filtered[ssc_h] / data_filtered[ssc_a]
 
-    # Define the singlet gate
-    lower_bound = 0.8
-    upper_bound = 1.2
-
-    # Create a boolean mask for singlets
-    singlet_mask = (ssc_ratio >= lower_bound) & (ssc_ratio <= upper_bound)
+    # Create a boolean mask for singlets (same thresholds as remove_doublets)
+    singlet_mask = (ssc_ratio >= SINGLET_RATIO_LOWER) & (
+        ssc_ratio <= SINGLET_RATIO_UPPER
+    )
 
     # Plot hexbin
     hb = ax.hexbin(
@@ -194,8 +190,8 @@ def plot_singlet_gate(data, ssc_a="SSC-A", ssc_h="SSC-H", ax=None, file_name=Non
     x = np.logspace(
         np.log10(data_filtered[ssc_a].min()), np.log10(data_filtered[ssc_a].max()), 100
     )
-    ax.plot(x, lower_bound * x, "r--", linewidth=0.5)
-    ax.plot(x, upper_bound * x, "r--", linewidth=0.5)
+    ax.plot(x, SINGLET_RATIO_LOWER * x, "r--", linewidth=0.5)
+    ax.plot(x, SINGLET_RATIO_UPPER * x, "r--", linewidth=0.5)
 
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -390,8 +386,18 @@ def plot_scatter_with_manual_gates(
 
     # Handle non-positive values for log scale
     if x_scale == "log":
+        n_clipped_x = (cleaned_data[x_param] <= 0).sum()
+        if n_clipped_x > 0:
+            print(
+                f"Warning: {n_clipped_x} events with {x_param} <= 0 clipped to 1 for log scale in {file_name}"
+            )
         cleaned_data[x_param] = cleaned_data[x_param].clip(lower=1)
     if y_scale == "log":
+        n_clipped_y = (cleaned_data[y_param] <= 0).sum()
+        if n_clipped_y > 0:
+            print(
+                f"Warning: {n_clipped_y} events with {y_param} <= 0 clipped to 1 for log scale in {file_name}"
+            )
         cleaned_data[y_param] = cleaned_data[y_param].clip(lower=1)
 
     if scatter_type == "density":
