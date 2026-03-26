@@ -1,7 +1,7 @@
 # ADR-001 : Utilisation de f-strings dans les appels logging
 
-**Date** : 2026-03-26  
-**Statut** : Accepté  
+**Date** : 2026-03-26
+**Statut** : Accepté
 
 ## Contexte
 

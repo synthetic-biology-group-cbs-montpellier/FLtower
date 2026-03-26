@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 import pandas as pd
 import pytest
 
-from fltower.main_fltower import main, setup_logging, logger
+from fltower.main_fltower import logger, main, setup_logging
 
 # Get the directory of the current test file
 TEST_DIR = os.path.dirname(__file__)
