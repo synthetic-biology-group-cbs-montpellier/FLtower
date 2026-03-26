@@ -43,7 +43,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="scipy")
 # Suppress matplotlib colorbar cross-figure warning (known issue with multi-subplot grids)
 warnings.filterwarnings("ignore", message=".*Adding colorbar to a different Figure.*")
 
-# Singlet gate thresholds (SSC-H / SSC-A ratio bounds)
+# Default singlet gate thresholds (SSC-H / SSC-A ratio bounds)
 SINGLET_RATIO_LOWER = 0.7
 SINGLET_RATIO_UPPER = 2.0
 
@@ -164,7 +164,13 @@ def create_output_structure(results_directory):
     )
 
 
-def remove_doublets(data, ssc_a="SSC-A", ssc_h="SSC-H"):
+def remove_doublets(
+    data,
+    ssc_a="SSC-A",
+    ssc_h="SSC-H",
+    singlet_lower=SINGLET_RATIO_LOWER,
+    singlet_upper=SINGLET_RATIO_UPPER,
+):
     """
     Remove doublets based on SSC-A vs SSC-H plot using vectorized operations.
     Returns the filtered data, the percentage of singlets, total events, and number of singlets.
@@ -178,9 +184,7 @@ def remove_doublets(data, ssc_a="SSC-A", ssc_h="SSC-H"):
         return data, 0, len(data), 0
 
     ssc_ratio = data_filtered[ssc_h] / data_filtered[ssc_a]
-    singlet_mask = (ssc_ratio >= SINGLET_RATIO_LOWER) & (
-        ssc_ratio <= SINGLET_RATIO_UPPER
-    )
+    singlet_mask = (ssc_ratio >= singlet_lower) & (ssc_ratio <= singlet_upper)
     singlets = data_filtered[singlet_mask]
     total_events = len(data)
     singlet_events = len(singlets)
@@ -189,7 +193,15 @@ def remove_doublets(data, ssc_a="SSC-A", ssc_h="SSC-H"):
     return singlets, singlet_percentage, total_events, singlet_events
 
 
-def plot_singlet_gate(data, ssc_a="SSC-A", ssc_h="SSC-H", ax=None, file_name=None):
+def plot_singlet_gate(
+    data,
+    ssc_a="SSC-A",
+    ssc_h="SSC-H",
+    ax=None,
+    file_name=None,
+    singlet_lower=SINGLET_RATIO_LOWER,
+    singlet_upper=SINGLET_RATIO_UPPER,
+):
     """
     Plot SSC-A vs SSC-H hexbin plot with the singlet gate for original data on a given axis.
     """
@@ -210,9 +222,7 @@ def plot_singlet_gate(data, ssc_a="SSC-A", ssc_h="SSC-H", ax=None, file_name=Non
     ssc_ratio = data_filtered[ssc_h] / data_filtered[ssc_a]
 
     # Create a boolean mask for singlets (same thresholds as remove_doublets)
-    singlet_mask = (ssc_ratio >= SINGLET_RATIO_LOWER) & (
-        ssc_ratio <= SINGLET_RATIO_UPPER
-    )
+    singlet_mask = (ssc_ratio >= singlet_lower) & (ssc_ratio <= singlet_upper)
 
     # Plot hexbin
     hb = ax.hexbin(
@@ -233,8 +243,8 @@ def plot_singlet_gate(data, ssc_a="SSC-A", ssc_h="SSC-H", ax=None, file_name=Non
     x = np.logspace(
         np.log10(data_filtered[ssc_a].min()), np.log10(data_filtered[ssc_a].max()), 100
     )
-    ax.plot(x, SINGLET_RATIO_LOWER * x, "r--", linewidth=0.5)
-    ax.plot(x, SINGLET_RATIO_UPPER * x, "r--", linewidth=0.5)
+    ax.plot(x, singlet_lower * x, "r--", linewidth=0.5)
+    ax.plot(x, singlet_upper * x, "r--", linewidth=0.5)
 
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -918,6 +928,19 @@ def plot_triplicate_stats(
 def process_fcs_files(directory, plots_config, results_directory):
     start_time = time.time()
 
+    # Extract singlet gate thresholds from config (always present after validation)
+    singlet_cfg = plots_config.get("singlet_gate", {})
+    singlet_lower = singlet_cfg.get("lower", SINGLET_RATIO_LOWER)
+    singlet_upper = singlet_cfg.get("upper", SINGLET_RATIO_UPPER)
+    logger.info(
+        f"Singlet gate thresholds: lower={singlet_lower}, upper={singlet_upper}"
+    )
+
+    # Separate plot configs from non-plot keys (e.g. singlet_gate)
+    plot_configs = {
+        k: v for k, v in plots_config.items() if isinstance(v, dict) and "type" in v
+    }
+
     # Create output structure
     (
         plots_dir,
@@ -965,7 +988,7 @@ def process_fcs_files(directory, plots_config, results_directory):
     # Create figures for each plot configuration
     figs = {}
     axes = {}
-    for config in plots_config.values():
+    for config in plot_configs.values():
         plot_key = f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
         fig, ax = plt.subplots(
             num_rows + 1,
@@ -1050,7 +1073,7 @@ def process_fcs_files(directory, plots_config, results_directory):
     wells_with_data = set()
 
     # Calculate total number of iterations
-    total_iterations = len(files) * (len(plots_config) + 1)  # +1 for singlet plots
+    total_iterations = len(files) * (len(plot_configs) + 1)  # +1 for singlet plots
 
     # Create a progress bar (disabled in quiet mode)
     console_level = logging.INFO
@@ -1098,7 +1121,11 @@ def process_fcs_files(directory, plots_config, results_directory):
                     singlet_percentage,
                     total_events,
                     singlet_events,
-                ) = remove_doublets(data)
+                ) = remove_doublets(
+                    data,
+                    singlet_lower=singlet_lower,
+                    singlet_upper=singlet_upper,
+                )
                 logger.info(
                     "File: %s, Singlet percentage: %.2f%%, Total events: %d, Singlet events: %d",
                     file,
@@ -1117,9 +1144,15 @@ def process_fcs_files(directory, plots_config, results_directory):
 
                 # Plot singlet gate
                 ax_singlet = axes_singlets[row, col]
-                plot_singlet_gate(data, ax=ax_singlet, file_name=well_key)
+                plot_singlet_gate(
+                    data,
+                    ax=ax_singlet,
+                    file_name=well_key,
+                    singlet_lower=singlet_lower,
+                    singlet_upper=singlet_upper,
+                )
 
-                for config in plots_config.values():
+                for config in plot_configs.values():
                     plot_key = f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
                     if config["type"] == "scatter":
                         # Process scatter plot
@@ -1221,7 +1254,7 @@ def process_fcs_files(directory, plots_config, results_directory):
         logger.info(f"Saved singlet statistics to: {singlet_csv_path}")
 
         # Process triplicate plots based on configuration
-        for config in plots_config.values():
+        for config in plot_configs.values():
             plot_key = (
                 f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
             )
@@ -1307,7 +1340,7 @@ def process_fcs_files(directory, plots_config, results_directory):
         logger.info(f"Saved singlet gates plot: {singlet_plot_path}")
 
         # Generate and save 96-well plots
-        for config in plots_config.values():
+        for config in plot_configs.values():
             plot_key = (
                 f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
             )
@@ -1342,6 +1375,10 @@ def process_fcs_files(directory, plots_config, results_directory):
 
 
 def compile_summary_report(results_directory, plots_config):
+    # Separate plot configs from non-plot keys (e.g. singlet_gate)
+    plot_configs = {
+        k: v for k, v in plots_config.items() if isinstance(v, dict) and "type" in v
+    }
     pdf_path = os.path.join(results_directory, "summary_report.pdf")
     plots_dir = os.path.join(results_directory, "plots")
     well_plots_dir = os.path.join(results_directory, "96well_plots")
@@ -1391,7 +1428,7 @@ def compile_summary_report(results_directory, plots_config):
         plt.close()
 
         # Compile main plots (histogram, scatter, singlets)
-        for config in plots_config.values():
+        for config in plot_configs.values():
             plot_key = (
                 f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
             )
@@ -1413,7 +1450,7 @@ def compile_summary_report(results_directory, plots_config):
                 logger.warning(f"{plot_key} plot not found at {plot_path}")
 
         # Add each 96-well plot to the PDF
-        for config in plots_config.values():
+        for config in plot_configs.values():
             if "96well_plots" in config:
                 parameter_name = config["x_param"].split("-")[
                     0
@@ -1441,7 +1478,7 @@ def compile_summary_report(results_directory, plots_config):
                         )
 
         # Add triplicate plots to the PDF
-        for config in plots_config.values():
+        for config in plot_configs.values():
             if "triplicate_plots" in config:
                 plot_key = (
                     f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"

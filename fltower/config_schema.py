@@ -60,21 +60,42 @@ class HistogramPlotConfig(BaseModel):
 PlotConfig = Union[ScatterPlotConfig, HistogramPlotConfig]
 
 
+class SingletGateConfig(BaseModel):
+    """Singlet gate thresholds (SSC-H / SSC-A ratio bounds)."""
+
+    lower: float = Field(default=0.7, gt=0)
+    upper: float = Field(default=2.0, gt=0)
+
+    @model_validator(mode="after")
+    def _lower_lt_upper(self):
+        if self.lower >= self.upper:
+            raise ValueError(
+                f"singlet_gate.lower ({self.lower}) must be < upper ({self.upper})"
+            )
+        return self
+
+
 class ParametersConfig(BaseModel):
     """Root model: a dict of named plot configurations.
 
     Accepts any key matching ``plots_config_*`` pattern.
-    Unknown keys are rejected.
+    An optional ``singlet_gate`` key configures singlet thresholds.
     """
 
+    singlet_gate: SingletGateConfig = Field(default_factory=SingletGateConfig)
     configs: dict[str, PlotConfig]
 
     @model_validator(mode="before")
     @classmethod
     def _wrap_raw_dict(cls, data):
-        """Accept the raw JSON dict (keys are plot config names) and wrap it."""
+        """Accept the raw JSON dict and separate singlet_gate from plot configs."""
         if isinstance(data, dict) and "configs" not in data:
-            return {"configs": data}
+            data = dict(data)  # copy to avoid mutating the original
+            singlet_gate = data.pop("singlet_gate", None)
+            result = {"configs": data}
+            if singlet_gate is not None:
+                result["singlet_gate"] = singlet_gate
+            return result
         return data
 
 
@@ -90,6 +111,8 @@ def validate_parameters(raw: dict) -> dict:
     -------
     dict
         The original *raw* dict (unchanged), if validation passes.
+        If ``singlet_gate`` is absent from the raw dict, it is injected
+        with default values so downstream code always finds it.
 
     Raises
     ------
@@ -97,7 +120,15 @@ def validate_parameters(raw: dict) -> dict:
         If validation fails, with a human-readable error message.
     """
     try:
-        ParametersConfig.model_validate(raw)
+        parsed = ParametersConfig.model_validate(raw)
     except Exception as e:
         raise ValueError(f"Invalid parameters.json:\n{e}") from e
+
+    # Ensure singlet_gate is always present in the returned dict
+    if "singlet_gate" not in raw:
+        raw = dict(raw)
+        raw["singlet_gate"] = {
+            "lower": parsed.singlet_gate.lower,
+            "upper": parsed.singlet_gate.upper,
+        }
     return raw

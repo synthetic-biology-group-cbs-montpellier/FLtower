@@ -54,16 +54,20 @@ def valid_histogram_config():
 class TestValidConfigs:
     def test_valid_scatter(self, valid_scatter_config):
         result = validate_parameters(valid_scatter_config)
-        assert result == valid_scatter_config
+        assert result["plots_config_1"] == valid_scatter_config["plots_config_1"]
+        assert "singlet_gate" in result
 
     def test_valid_histogram(self, valid_histogram_config):
         result = validate_parameters(valid_histogram_config)
-        assert result == valid_histogram_config
+        assert result["plots_config_2"] == valid_histogram_config["plots_config_2"]
+        assert "singlet_gate" in result
 
     def test_valid_mixed(self, valid_scatter_config, valid_histogram_config):
         combined = {**valid_scatter_config, **valid_histogram_config}
         result = validate_parameters(combined)
-        assert result == combined
+        assert result["plots_config_1"] == valid_scatter_config["plots_config_1"]
+        assert result["plots_config_2"] == valid_histogram_config["plots_config_2"]
+        assert "singlet_gate" in result
 
     def test_scatter_minimal(self):
         """Scatter with only required fields."""
@@ -74,7 +78,9 @@ class TestValidConfigs:
                 "y_param": "SSC-A",
             }
         }
-        assert validate_parameters(config) == config
+        result = validate_parameters(config)
+        assert result["my_plot"] == config["my_plot"]
+        assert "singlet_gate" in result
 
     def test_histogram_minimal(self):
         """Histogram with only required fields."""
@@ -84,11 +90,14 @@ class TestValidConfigs:
                 "x_param": "BL1-H",
             }
         }
-        assert validate_parameters(config) == config
+        result = validate_parameters(config)
+        assert result["my_plot"] == config["my_plot"]
+        assert "singlet_gate" in result
 
     def test_empty_config(self):
         """Empty dict is valid (no plots configured)."""
-        assert validate_parameters({}) == {}
+        result = validate_parameters({})
+        assert "singlet_gate" in result
 
 
 class TestInvalidConfigs:
@@ -161,6 +170,57 @@ class TestInvalidConfigs:
                 "y_param": "SSC-A",
                 "quadrant_gates": {"x": 100},
             }
+        }
+        with pytest.raises(ValueError, match="Invalid parameters.json"):
+            validate_parameters(config)
+
+
+class TestSingletGateConfig:
+    def test_default_injected_when_absent(self):
+        config = {"p1": {"type": "histogram", "x_param": "BL1-H"}}
+        result = validate_parameters(config)
+        assert "singlet_gate" in result
+        assert result["singlet_gate"]["lower"] == pytest.approx(0.7)
+        assert result["singlet_gate"]["upper"] == pytest.approx(2.0)
+
+    def test_custom_thresholds(self):
+        config = {
+            "singlet_gate": {"lower": 0.5, "upper": 3.0},
+            "p1": {"type": "histogram", "x_param": "BL1-H"},
+        }
+        result = validate_parameters(config)
+        assert result["singlet_gate"]["lower"] == pytest.approx(0.5)
+        assert result["singlet_gate"]["upper"] == pytest.approx(3.0)
+
+    def test_partial_override_lower(self):
+        config = {
+            "singlet_gate": {"lower": 0.5, "upper": 2.0},
+            "p1": {"type": "histogram", "x_param": "BL1-H"},
+        }
+        result = validate_parameters(config)
+        assert result["singlet_gate"]["lower"] == pytest.approx(0.5)
+        assert result["singlet_gate"]["upper"] == pytest.approx(2.0)
+
+    def test_invalid_lower_ge_upper(self):
+        config = {
+            "singlet_gate": {"lower": 3.0, "upper": 1.0},
+            "p1": {"type": "histogram", "x_param": "BL1-H"},
+        }
+        with pytest.raises(ValueError, match="Invalid parameters.json"):
+            validate_parameters(config)
+
+    def test_invalid_negative_lower(self):
+        config = {
+            "singlet_gate": {"lower": -0.5, "upper": 2.0},
+            "p1": {"type": "histogram", "x_param": "BL1-H"},
+        }
+        with pytest.raises(ValueError, match="Invalid parameters.json"):
+            validate_parameters(config)
+
+    def test_invalid_equal(self):
+        config = {
+            "singlet_gate": {"lower": 1.0, "upper": 1.0},
+            "p1": {"type": "histogram", "x_param": "BL1-H"},
         }
         with pytest.raises(ValueError, match="Invalid parameters.json"):
             validate_parameters(config)

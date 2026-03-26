@@ -144,6 +144,22 @@ class TestRemoveDoublets:
         singlets, pct, total, n_singlets = remove_doublets(data)
         assert n_singlets == 2
 
+    def test_custom_thresholds(self):
+        # ratio = 1.0 for all rows; narrow gate [0.9, 1.1] should still include them
+        data = self._make_data([100, 200], [100, 200])
+        singlets, pct, total, n_singlets = remove_doublets(
+            data, singlet_lower=0.9, singlet_upper=1.1
+        )
+        assert n_singlets == 2
+
+    def test_custom_thresholds_excludes(self):
+        # ratio = 1.0; gate [1.5, 2.5] should exclude all
+        data = self._make_data([100, 200], [100, 200])
+        singlets, pct, total, n_singlets = remove_doublets(
+            data, singlet_lower=1.5, singlet_upper=2.5
+        )
+        assert n_singlets == 0
+
 
 # ---------------------------------------------------------------------------
 # compute_statistics

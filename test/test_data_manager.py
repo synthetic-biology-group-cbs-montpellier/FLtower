@@ -77,7 +77,10 @@ def test_load_parameters_with_explicit_file(example_parameters):
 
         # Load parameters using the function
         params = load_parameters(input_dir=temp_dir, parameters_file=parameters_path)
-        assert params == example_parameters
+        # validate_parameters injects singlet_gate defaults
+        assert "singlet_gate" in params
+        for key in example_parameters:
+            assert params[key] == example_parameters[key]
 
 
 def test_load_parameters_with_default_file(example_parameters):
@@ -90,7 +93,10 @@ def test_load_parameters_with_default_file(example_parameters):
 
         # Load parameters using the function without specifying the file
         params = load_parameters(input_dir=temp_dir)
-        assert params == example_parameters
+        # validate_parameters injects singlet_gate defaults
+        assert "singlet_gate" in params
+        for key in example_parameters:
+            assert params[key] == example_parameters[key]
 
 
 def test_load_parameters_file_not_found():
