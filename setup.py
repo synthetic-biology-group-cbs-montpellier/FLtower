@@ -25,6 +25,7 @@ REQUIREMENTS = [
     "scipy==1.14.1",
     "fcsparser==0.2.8",
     "tqdm==4.67.1",
+    "pydantic>=2.0",
 ]
 
 setup(

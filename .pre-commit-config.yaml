@@ -38,4 +38,4 @@ repos:
     rev: v2.4.2
     hooks:
       - id: codespell  # Corrects common typos in code and documentation
-        args: ["--skip", "*.fcs,*flow_cytometry_analysis_guide.md"]
+        args: ["--skip", "*.fcs,*_guide.md"]

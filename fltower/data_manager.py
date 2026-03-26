@@ -2,6 +2,8 @@ import json
 import os
 import shutil
 
+from fltower.config_schema import validate_parameters
+
 
 def save_parameters_template(input_dir):
     template_filepath = os.path.join(input_dir, "parameters_template.json")
@@ -42,7 +44,9 @@ def load_parameters(input_dir, parameters_file=None):
 
     # Load the JSON data
     with open(file_path, "r") as f:
-        return json.load(f)
+        raw = json.load(f)
+
+    return validate_parameters(raw)
 
 
 def save_parameters(parameters, output_folder, file_name="parameters.json"):
