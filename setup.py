@@ -39,6 +39,7 @@ setup(
             "fltower=fltower.main_fltower:main",
         ],
     },
+    python_requires=">=3.11",
     install_requires=REQUIREMENTS,
     include_package_data=True,
     packages=find_packages(),

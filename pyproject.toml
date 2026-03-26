@@ -1,3 +1,24 @@
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 88
+
+[tool.isort]
+profile = "black"
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = ["E501", "W503", "E203"]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+addopts = "--cov=fltower --cov-report=term-missing --cov-fail-under=50"
+
+[tool.coverage.run]
+source = ["fltower"]
+omit = ["fltower/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = ["if __name__ == .__main__.", "pragma: no cover"]
