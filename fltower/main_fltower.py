@@ -387,6 +387,8 @@ def calculate_gate_statistics(data, gate_min, gate_max):
     Calculate the percentage and geometric mean of cells within a specified gate.
     """
     total_cells = len(data)
+    if total_cells == 0:
+        return 0.0, 0
     cells_in_gate = data[(data >= gate_min) & (data <= gate_max)]
     percentage = (len(cells_in_gate) / total_cells) * 100
     geo_mean = gmean(cells_in_gate) if len(cells_in_gate) > 0 else 0
