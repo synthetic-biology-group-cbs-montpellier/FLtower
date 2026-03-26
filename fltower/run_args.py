@@ -40,5 +40,19 @@ def parse_run_args(command_line_arguments=None):
         default=None,
         help="Path of the parameters.json file.\nDEFAULT: FLtower expect this file inside your current directory",
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Enable verbose output (DEBUG level logging).",
+    )
+    parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        default=False,
+        help="Suppress most output (WARNING level logging only).",
+    )
 
     return parser.parse_args(command_line_arguments)

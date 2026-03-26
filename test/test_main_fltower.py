@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 import pandas as pd
 import pytest
 
-from fltower.main_fltower import main
+from fltower.main_fltower import main, setup_logging, logger
 
 # Get the directory of the current test file
 TEST_DIR = os.path.dirname(__file__)
@@ -98,7 +98,7 @@ def compare_directories(generated_dir, reference_dir):
     # Helper function to filter files based on excluded extensions
     def _filter_files(files):
         # Define a set of excluded extensions
-        excluded_extensions = {".png", ".json", ".pdf"}
+        excluded_extensions = {".png", ".json", ".pdf", ".log"}
         return [
             f for f in files if not any(f.endswith(ext) for ext in excluded_extensions)
         ]
@@ -139,3 +139,16 @@ def test_run_without_parameters_file(temporary_output_dir):
     assert os.path.exists(
         os.path.join(temporary_output_dir, "parameters_template.json")
     )
+
+
+def test_log_file_captures_debug_in_quiet_mode(tmp_path):
+    """Log file must always capture DEBUG level, even when console is in quiet mode."""
+    log_file = str(tmp_path / "test.log")
+    setup_logging(quiet=True, log_file=log_file)
+    logger.debug("debug_marker")
+    logger.info("info_marker")
+    logger.warning("warning_marker")
+    content = open(log_file).read()
+    assert "debug_marker" in content
+    assert "info_marker" in content
+    assert "warning_marker" in content

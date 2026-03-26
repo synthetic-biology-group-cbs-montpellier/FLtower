@@ -10,25 +10,70 @@ from fltower.run_args import parse_run_args
     "cli_args, expected",
     [
         # Test default arguments
-        ([], Namespace(input=os.getcwd(), output=os.getcwd(), parameters=None)),
+        (
+            [],
+            Namespace(
+                input=os.getcwd(),
+                output=os.getcwd(),
+                parameters=None,
+                verbose=False,
+                quiet=False,
+            ),
+        ),
         # Test custom input and output directories
         (
             ["-I", "/path/to/input", "-O", "/path/to/output"],
             Namespace(
-                input="/path/to/input", output="/path/to/output", parameters=None
+                input="/path/to/input",
+                output="/path/to/output",
+                parameters=None,
+                verbose=False,
+                quiet=False,
             ),
         ),
         # Test custom parameters file
         (
             ["-P", "/path/to/params.json"],
             Namespace(
-                input=os.getcwd(), output=os.getcwd(), parameters="/path/to/params.json"
+                input=os.getcwd(),
+                output=os.getcwd(),
+                parameters="/path/to/params.json",
+                verbose=False,
+                quiet=False,
             ),
         ),
         # Test all custom arguments
         (
             ["-I", "/input", "-O", "/output", "-P", "/params.json"],
-            Namespace(input="/input", output="/output", parameters="/params.json"),
+            Namespace(
+                input="/input",
+                output="/output",
+                parameters="/params.json",
+                verbose=False,
+                quiet=False,
+            ),
+        ),
+        # Test verbose flag
+        (
+            ["-v"],
+            Namespace(
+                input=os.getcwd(),
+                output=os.getcwd(),
+                parameters=None,
+                verbose=True,
+                quiet=False,
+            ),
+        ),
+        # Test quiet flag
+        (
+            ["-q"],
+            Namespace(
+                input=os.getcwd(),
+                output=os.getcwd(),
+                parameters=None,
+                verbose=False,
+                quiet=True,
+            ),
         ),
     ],
 )
