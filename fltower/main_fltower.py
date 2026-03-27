@@ -18,6 +18,10 @@ import pandas as pd
 from tqdm import tqdm
 
 from fltower.__version__ import __version__
+from fltower.core.gating.auto.resolve import (
+    resolve_histogram_gates,
+    resolve_quadrant_gates,
+)
 from fltower.core.gating.hierarchy import apply_gating_hierarchy, get_gating_summary
 from fltower.core.statistics import calculate_triplicate_stats
 from fltower.data_manager import load_parameters, save_parameters
@@ -375,6 +379,8 @@ def process_fcs_files(directory, plots_config, results_directory):
                 for config in plot_configs.values():
                     plot_key = f"{config['type']}_{config['x_param']}_{config.get('y_param', '')}"
                     if config["type"] == "scatter":
+                        # Resolve auto quadrant gates (Otsu per axis)
+                        resolved_qgates = resolve_quadrant_gates(singlets, config)
                         # Process scatter plot
                         ax = axes[plot_key][row, col]
                         gate_stats = plot_scatter_with_manual_gates(
@@ -390,7 +396,7 @@ def process_fcs_files(directory, plots_config, results_directory):
                             xlim=config.get("xlim"),
                             ylim=config.get("ylim"),
                             gridsize=config.get("gridsize", 100),
-                            quadrant_gates=config.get("quadrant_gates"),
+                            quadrant_gates=resolved_qgates,
                         )
 
                         if gate_stats is not None:
@@ -401,6 +407,8 @@ def process_fcs_files(directory, plots_config, results_directory):
                             scatter_dfs[plot_key].append(new_df)
 
                     elif config["type"] == "histogram":
+                        # Resolve auto histogram gates (Otsu split)
+                        resolved_hgates = resolve_histogram_gates(singlets, config)
                         # Process histogram plot
                         ax = axes[plot_key][row, col]
                         stats = plot_histogram(
@@ -412,7 +420,7 @@ def process_fcs_files(directory, plots_config, results_directory):
                             kde=config.get("kde", False),
                             color=config.get("color", "blue"),
                             xlim=config.get("xlim"),
-                            gates=config.get("gates"),
+                            gates=resolved_hgates,
                         )
 
                         if stats is not None:

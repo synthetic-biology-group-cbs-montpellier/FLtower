@@ -34,7 +34,7 @@ class ScatterPlotConfig(BaseModel):
     cmap: str = "viridis"
     gridsize: int = Field(default=100, gt=0)
     scatter_type: Literal["scatter", "density"] = "scatter"
-    quadrant_gates: Optional[QuadrantGates] = None
+    quadrant_gates: Union[QuadrantGates, Literal["auto"], None] = None
     well_plots: list[WellPlotSpec] = Field(default_factory=list, alias="96well_plots")
     triplicate_plots: list[WellPlotSpec] = Field(default_factory=list)
 
@@ -50,7 +50,7 @@ class HistogramPlotConfig(BaseModel):
     xlim: Optional[list[float]] = None
     color: str = "blue"
     kde: bool = False
-    gates: Optional[list[list[float]]] = None
+    gates: Union[list[list[float]], Literal["auto"], None] = None
     well_plots: list[WellPlotSpec] = Field(default_factory=list, alias="96well_plots")
     triplicate_plots: list[WellPlotSpec] = Field(default_factory=list)
 
