@@ -18,11 +18,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from fltower.__version__ import __version__
-from fltower.core.gating.singlet import (
-    SINGLET_RATIO_LOWER,
-    SINGLET_RATIO_UPPER,
-    remove_doublets,
-)
+from fltower.core.gating.hierarchy import apply_gating_hierarchy, get_gating_summary
 from fltower.core.statistics import calculate_triplicate_stats
 from fltower.data_manager import load_parameters, save_parameters
 from fltower.io.export import (
@@ -135,16 +131,37 @@ def create_output_structure(results_directory):
     )
 
 
+def _log_gating_hierarchy_summary(gating_roots):
+    """Log a table summarising the gating hierarchy across all wells."""
+    rows = []
+    for well_key, root in gating_roots:
+        for entry in get_gating_summary(root):
+            entry["Well"] = well_key
+            rows.append(entry)
+
+    df = pd.DataFrame(rows)
+
+    # Per-gate aggregated summary
+    agg = (
+        df.groupby("Gate")
+        .agg(
+            Wells=("Well", "count"),
+            Total_Parent=("Parent_Events", "sum"),
+            Total_Gated=("Gated_Events", "sum"),
+            Mean_Pct=("Percentage", "mean"),
+        )
+        .reset_index()
+    )
+    logger.info("Gating hierarchy summary:\n%s", agg.to_string(index=False))
+
+
 def process_fcs_files(directory, plots_config, results_directory):
     start_time = time.time()
 
-    # Extract singlet gate thresholds from config (always present after validation)
+    # Extract singlet gate thresholds for plot_singlet_gate
     singlet_cfg = plots_config.get("singlet_gate", {})
-    singlet_lower = singlet_cfg.get("lower", SINGLET_RATIO_LOWER)
-    singlet_upper = singlet_cfg.get("upper", SINGLET_RATIO_UPPER)
-    logger.info(
-        f"Singlet gate thresholds: lower={singlet_lower}, upper={singlet_upper}"
-    )
+    singlet_lower = singlet_cfg.get("lower", 0.7)
+    singlet_upper = singlet_cfg.get("upper", 2.0)
 
     # Separate plot configs from non-plot keys (e.g. singlet_gate)
     plot_configs = {
@@ -163,6 +180,7 @@ def process_fcs_files(directory, plots_config, results_directory):
     scatter_dfs = {}
     histogram_dfs = {}
     singlet_stats = []
+    gating_roots = []
 
     files = [
         os.path.join(directory, f) for f in os.listdir(directory) if f.endswith(".fcs")
@@ -325,30 +343,22 @@ def process_fcs_files(directory, plots_config, results_directory):
                     pbar.update(1)
                     continue
 
-                # Remove doublets
-                (
-                    singlets,
-                    singlet_percentage,
-                    total_events,
-                    singlet_events,
-                ) = remove_doublets(
-                    data,
-                    singlet_lower=singlet_lower,
-                    singlet_upper=singlet_upper,
-                )
+                # Apply gating hierarchy (root → singlet gate)
+                gating_root = apply_gating_hierarchy(data, plots_config)
+                gating_roots.append((well_key, gating_root))
+                singlet_node = gating_root.children[0]
+                singlets = singlet_node.data
                 logger.info(
                     "File: %s, Singlet percentage: %.2f%%, Total events: %d, Singlet events: %d",
                     file,
-                    singlet_percentage,
-                    total_events,
-                    singlet_events,
+                    singlet_node.percentage,
+                    singlet_node.parent_events,
+                    singlet_node.gated_events,
                 )
                 singlet_stats.append(
                     {
                         "Well": well_key,
-                        "Singlet_Percentage": singlet_percentage,
-                        "Total_Events": total_events,
-                        "Singlet_Events": singlet_events,
+                        **singlet_node.stats,
                     }
                 )
 
@@ -548,6 +558,10 @@ def process_fcs_files(directory, plots_config, results_directory):
                             metric,
                             plot_key,
                         )
+
+        # Log gating hierarchy summary
+        if gating_roots:
+            _log_gating_hierarchy_summary(gating_roots)
 
         return scatter_dfs, histogram_dfs, singlet_stats, time.time() - start_time
 
