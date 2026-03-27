@@ -13,7 +13,6 @@ import time
 import warnings
 from datetime import datetime
 
-import fcsparser
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,7 +25,9 @@ from scipy.stats import gmean
 from tqdm import tqdm
 
 from fltower.__version__ import __version__
+from fltower.core.cleaning import clean_data
 from fltower.data_manager import load_parameters, save_parameters
+from fltower.io.fcs_reader import read_fcs
 from fltower.run_args import parse_run_args
 
 # Suppress specific FutureWarnings from seaborn related to pandas deprecation
@@ -89,15 +90,6 @@ def setup_logging(verbose=False, quiet=False, log_file=None):
         logger.addHandler(file_handler)
 
 
-def read_fcs(file_path):
-    try:
-        meta, data = fcsparser.parse(file_path, reformat_meta=True)
-        return data, list(data.columns)
-    except Exception as e:
-        logger.error(f"Failed to read {file_path}: {e} (type: {type(e).__name__})")
-        return None, []
-
-
 # Mapping labels for channels
 LABEL_MAP = {
     "BL1-H": "GFP",
@@ -121,19 +113,6 @@ def extract_well_key(filename):
         return match.group(0), (letter_part, number_part)
     else:
         return base_name, (base_name, 0)
-
-
-def clean_data(data, columns, remove_zeros=False):
-    """Remove rows with NaN or infinite values in specified columns."""
-    initial_rows = len(data)
-    data = data.replace([np.inf, -np.inf], np.nan).dropna(subset=columns)
-    if remove_zeros:
-        for col in columns:
-            data = data[data[col] > 0]
-    removed_rows = initial_rows - len(data)
-    if removed_rows > 0:
-        logger.debug(f"Removed {removed_rows} rows with NaN or infinite values.")
-    return data
 
 
 def create_output_structure(results_directory):
