@@ -25,6 +25,12 @@ from fltower.core.gating.singlet import (
 )
 from fltower.core.statistics import calculate_triplicate_stats
 from fltower.data_manager import load_parameters, save_parameters
+from fltower.io.export import (
+    save_singlet_stats_csv,
+    save_statistics_csv,
+    save_stats_with_triplicates_csv,
+    save_triplicate_stats_csv,
+)
 from fltower.io.fcs_reader import read_fcs
 from fltower.plotting.histogram import plot_histogram
 from fltower.plotting.plate_view import plot_96well_grid
@@ -427,35 +433,19 @@ def process_fcs_files(directory, plots_config, results_directory):
                         ax[row, col].axis("off")
 
         # Concatenate DataFrames and save statistics to CSV files
+        results_name = os.path.basename(results_directory)
         for plot_key, df_list in scatter_dfs.items():
-            if df_list:
-                df = pd.concat(df_list, ignore_index=True)
-                scatter_csv_path = os.path.join(
-                    stats_dir,
-                    f"{plot_key}_statistics_{os.path.basename(results_directory)}.csv",
-                )
-                df.to_csv(scatter_csv_path, index=False)
-                logger.info(f"Saved {plot_key} statistics to: {scatter_csv_path}")
-                scatter_dfs[plot_key] = df  # Replace list with concatenated DataFrame
+            df = save_statistics_csv(df_list, plot_key, stats_dir, results_name)
+            if df is not None:
+                scatter_dfs[plot_key] = df
 
         for plot_key, df_list in histogram_dfs.items():
-            if df_list:
-                df = pd.concat(df_list, ignore_index=True)
-                histogram_csv_path = os.path.join(
-                    stats_dir,
-                    f"{plot_key}_statistics_{os.path.basename(results_directory)}.csv",
-                )
-                df.to_csv(histogram_csv_path, index=False)
-                logger.info(f"Saved {plot_key} statistics to: {histogram_csv_path}")
-                histogram_dfs[plot_key] = df  # Replace list with concatenated DataFrame
+            df = save_statistics_csv(df_list, plot_key, stats_dir, results_name)
+            if df is not None:
+                histogram_dfs[plot_key] = df
 
         # Save singlet statistics
-        singlet_df = pd.DataFrame(singlet_stats)
-        singlet_csv_path = os.path.join(
-            stats_dir, f"singlet_statistics_{os.path.basename(results_directory)}.csv"
-        )
-        singlet_df.to_csv(singlet_csv_path, index=False)
-        logger.info(f"Saved singlet statistics to: {singlet_csv_path}")
+        save_singlet_stats_csv(singlet_stats, stats_dir, results_name)
 
         # Process triplicate plots based on configuration
         for config in plot_configs.values():
@@ -476,17 +466,11 @@ def process_fcs_files(directory, plots_config, results_directory):
 
                         if not triplicate_stats.empty:
                             # Save triplicate statistics
-                            triplicate_stats_filename = (
-                                f"{plot_key}_{metric}_triplicate_statistics.csv"
-                            )
-                            triplicate_stats_path = os.path.join(
-                                triplicate_stats_dir, triplicate_stats_filename
-                            )
-                            triplicate_stats.to_csv(triplicate_stats_path, index=False)
-                            logger.info(
-                                "Saved triplicate statistics for %s to: %s",
+                            save_triplicate_stats_csv(
+                                triplicate_stats,
+                                plot_key,
                                 metric,
-                                triplicate_stats_path,
+                                triplicate_stats_dir,
                             )
 
                             # Plot triplicate statistics
@@ -511,20 +495,10 @@ def process_fcs_files(directory, plots_config, results_directory):
 
         # Save updated dataframes
         for plot_key, df in scatter_dfs.items():
-            csv_filename = f"{plot_key}_statistics_with_triplicates.csv"
-            csv_path = os.path.join(stats_dir, csv_filename)
-            df.to_csv(csv_path, index=False)
-            logger.info(
-                "Saved %s statistics with triplicates to: %s", plot_key, csv_path
-            )
+            save_stats_with_triplicates_csv(df, plot_key, stats_dir)
 
         for plot_key, df in histogram_dfs.items():
-            csv_filename = f"{plot_key}_statistics_with_triplicates.csv"
-            csv_path = os.path.join(stats_dir, csv_filename)
-            df.to_csv(csv_path, index=False)
-            logger.info(
-                "Saved %s statistics with triplicates to: %s", plot_key, csv_path
-            )
+            save_stats_with_triplicates_csv(df, plot_key, stats_dir)
 
         # Save all main plots
         for plot_key, fig in figs.items():
@@ -575,7 +549,7 @@ def process_fcs_files(directory, plots_config, results_directory):
                             plot_key,
                         )
 
-        return scatter_dfs, histogram_dfs, singlet_df, time.time() - start_time
+        return scatter_dfs, histogram_dfs, singlet_stats, time.time() - start_time
 
 
 def main(command_line_arguments=None):
@@ -638,7 +612,7 @@ def main(command_line_arguments=None):
         logger.debug("Histogram Plot Statistics:")
         for plot_key, df in histogram_dfs.items():
             logger.debug(f"{plot_key} Statistics:\n{df}")
-        logger.debug(f"Singlet Statistics:\n{singlet_df}")
+        logger.debug(f"Singlet Statistics:\n{pd.DataFrame(singlet_df)}")
 
         # Compile summary report
         compile_summary_report(results_directory, plots_config)
