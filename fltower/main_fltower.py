@@ -26,6 +26,13 @@ from tqdm import tqdm
 
 from fltower.__version__ import __version__
 from fltower.core.cleaning import clean_data
+from fltower.core.gating.interval import compute_interval_stats
+from fltower.core.gating.quadrant import compute_quadrant_stats
+from fltower.core.gating.singlet import (
+    SINGLET_RATIO_LOWER,
+    SINGLET_RATIO_UPPER,
+    remove_doublets,
+)
 from fltower.core.statistics import calculate_triplicate_stats
 from fltower.data_manager import load_parameters, save_parameters
 from fltower.io.fcs_reader import read_fcs
@@ -44,10 +51,6 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, module="scipy")
 
 # Suppress matplotlib colorbar cross-figure warning (known issue with multi-subplot grids)
 warnings.filterwarnings("ignore", message=".*Adding colorbar to a different Figure.*")
-
-# Default singlet gate thresholds (SSC-H / SSC-A ratio bounds)
-SINGLET_RATIO_LOWER = 0.7
-SINGLET_RATIO_UPPER = 2.0
 
 logger = logging.getLogger("fltower")
 
@@ -142,35 +145,6 @@ def create_output_structure(results_directory):
         triplicate_stats_dir,
         triplicate_plots_dir,
     )
-
-
-def remove_doublets(
-    data,
-    ssc_a="SSC-A",
-    ssc_h="SSC-H",
-    singlet_lower=SINGLET_RATIO_LOWER,
-    singlet_upper=SINGLET_RATIO_UPPER,
-):
-    """
-    Remove doublets based on SSC-A vs SSC-H plot using vectorized operations.
-    Returns the filtered data, the percentage of singlets, total events, and number of singlets.
-    """
-    # Filter out non-positive values
-    mask = (data[ssc_a] > 0) & (data[ssc_h] > 0)
-    data_filtered = data[mask]
-
-    if len(data_filtered) == 0:
-        logger.warning("No positive values found for doublet removal")
-        return data, 0, len(data), 0
-
-    ssc_ratio = data_filtered[ssc_h] / data_filtered[ssc_a]
-    singlet_mask = (ssc_ratio >= singlet_lower) & (ssc_ratio <= singlet_upper)
-    singlets = data_filtered[singlet_mask]
-    total_events = len(data)
-    singlet_events = len(singlets)
-    singlet_percentage = (singlet_events / total_events) * 100
-
-    return singlets, singlet_percentage, total_events, singlet_events
 
 
 def plot_singlet_gate(
@@ -317,21 +291,16 @@ def plot_histogram(
     }
 
     if gates:
+        interval_stats = compute_interval_stats(cleaned_data, x_param, gates)
+        stats.update(interval_stats)
+
         gate_colors = plt.cm.rainbow(np.linspace(0, 1, len(gates)))
         y_max = ax.get_ylim()[1]
         for i, ((gate_min, gate_max), gate_color) in enumerate(zip(gates, gate_colors)):
             ax.axvline(gate_min, color=gate_color, linestyle="--")
             ax.axvline(gate_max, color=gate_color, linestyle="--")
 
-            gate_data = cleaned_data[
-                (cleaned_data[x_param] >= gate_min)
-                & (cleaned_data[x_param] <= gate_max)
-            ]
-            percentage = (len(gate_data) / num_events) * 100
-            gate_gm = gmean(gate_data[x_param]) if len(gate_data) > 0 else 0
-
-            stats[f"Gate_{i+1}_Percentage"] = percentage
-            stats[f"Gate_{i+1}_GM"] = gate_gm
+            percentage = stats[f"Gate_{i + 1}_Percentage"]
 
             # Add gate label with percentage
             gate_center = (gate_min + gate_max) / 2
@@ -464,42 +433,10 @@ def plot_scatter_with_manual_gates(
     # Ensure square aspect ratio
     ax.set_aspect("equal", adjustable="box")
 
-    # Use quadrant gates if provided, otherwise use median values
-    if quadrant_gates and "x" in quadrant_gates and "y" in quadrant_gates:
-        x_mid = quadrant_gates["x"]
-        y_mid = quadrant_gates["y"]
-        logger.debug(f"Using provided quadrant gates: x={x_mid}, y={y_mid}")
-    else:
-        x_mid = np.median(cleaned_data[x_param])
-        y_mid = np.median(cleaned_data[y_param])
-        logger.debug(f"Using median values for quadrant gates: x={x_mid}, y={y_mid}")
-
-    # Define quadrants
-    quadrants = {
-        "Q1": (cleaned_data[x_param] >= x_mid) & (cleaned_data[y_param] >= y_mid),
-        "Q2": (cleaned_data[x_param] < x_mid) & (cleaned_data[y_param] >= y_mid),
-        "Q3": (cleaned_data[x_param] < x_mid) & (cleaned_data[y_param] < y_mid),
-        "Q4": (cleaned_data[x_param] >= x_mid) & (cleaned_data[y_param] < y_mid),
-    }
-
-    # Calculate percentages for each quadrant
-    total_cells = len(cleaned_data)
-    gate_stats = {}
-
-    for quad_name, quad_mask in quadrants.items():
-        cells_in_quad = cleaned_data[quad_mask]
-        percentage = (len(cells_in_quad) / total_cells) * 100
-        gate_stats[f"{quad_name}_Percentage"] = percentage
-
-        # Calculate GM and median for non-FSC/SSC channels
-        for param in [x_param, y_param]:
-            if not any(dim in param for dim in ["FSC", "SSC"]):
-                gate_stats[f"{quad_name}_{param}_GM"] = (
-                    gmean(cells_in_quad[param]) if len(cells_in_quad) > 0 else 0
-                )
-                gate_stats[f"{quad_name}_{param}_Median"] = (
-                    cells_in_quad[param].median() if len(cells_in_quad) > 0 else 0
-                )
+    # Compute quadrant statistics (pure computation)
+    gate_stats, x_mid, y_mid = compute_quadrant_stats(
+        cleaned_data, x_param, y_param, quadrant_gates
+    )
 
     # Define positions for labels
     label_positions = {
@@ -527,12 +464,6 @@ def plot_scatter_with_manual_gates(
             fontweight="bold",
             color="red",
         )
-
-    # Calculate global GM and median for non-FSC/SSC channels
-    for param in [x_param, y_param]:
-        if not any(dim in param for dim in ["FSC", "SSC"]):
-            gate_stats[f"Global_{param}_GM"] = gmean(cleaned_data[param])
-            gate_stats[f"Global_{param}_Median"] = cleaned_data[param].median()
 
     # Add quadrant lines
     ax.axvline(x_mid, color="red", linestyle="--", linewidth=1)
