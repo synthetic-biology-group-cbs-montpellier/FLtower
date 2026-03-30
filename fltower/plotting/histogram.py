@@ -7,7 +7,7 @@ from scipy.stats import gmean
 
 from fltower.core.cleaning import clean_data
 from fltower.core.gating.interval import compute_interval_stats
-from fltower.plotting._helpers import get_label
+from fltower.plotting._helpers import apply_log_axis_formatting, get_label
 
 
 def plot_histogram(
@@ -43,14 +43,7 @@ def plot_histogram(
     # Keep log ticks if x_scale is 'log'
     if x_scale == "log":
         ax.set_xscale("log")
-
-        # Custom formatter function
-        def log_tick_formatter(x, pos):
-            return f"$10^{{{int(np.log10(x))}}}$"
-
-        ax.xaxis.set_major_formatter(plt.FuncFormatter(log_tick_formatter))
-        ax.xaxis.set_major_locator(plt.LogLocator(numticks=6))
-        ax.xaxis.set_minor_locator(plt.LogLocator(subs="all", numticks=10))
+        apply_log_axis_formatting(ax, "x")
 
     # Calculate global statistics
     global_gm = gmean(cleaned_data[x_param])

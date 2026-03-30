@@ -109,23 +109,13 @@ def apply_gating_hierarchy(
     return root
 
 
-def get_gating_summary(root: GatingResult) -> list[dict]:
+def get_gating_summary(node: GatingResult, depth: int = 0) -> list[dict]:
     """Flatten the gating tree into a list of dicts for reporting.
 
     Each dict contains *Gate*, *Depth*, *Parent_Events*, *Gated_Events*
     and *Percentage*.
     """
-    summary: list[dict] = []
-    _collect_summary(root, summary, depth=0)
-    return summary
-
-
-def _collect_summary(
-    node: GatingResult,
-    summary: list[dict],
-    depth: int,
-) -> None:
-    summary.append(
+    rows = [
         {
             "Gate": node.name,
             "Depth": depth,
@@ -133,6 +123,7 @@ def _collect_summary(
             "Gated_Events": node.gated_events,
             "Percentage": node.percentage,
         }
-    )
+    ]
     for child in node.children:
-        _collect_summary(child, summary, depth + 1)
+        rows.extend(get_gating_summary(child, depth + 1))
+    return rows

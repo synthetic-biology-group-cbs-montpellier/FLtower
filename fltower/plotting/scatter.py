@@ -4,14 +4,56 @@ import logging
 import os
 
 import matplotlib.pyplot as plt
-import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from fltower.core.cleaning import clean_data
 from fltower.core.gating.quadrant import compute_quadrant_stats
-from fltower.plotting._helpers import get_label
+from fltower.plotting._helpers import apply_log_axis_formatting, get_label
 
 logger = logging.getLogger("fltower")
+
+
+def _clip_for_log_scale(data, param, scale, file_name):
+    """Clip non-positive values to 1 when log scale is requested."""
+    if scale != "log":
+        return data
+    n_clipped = (data[param] <= 0).sum()
+    if n_clipped > 0:
+        logger.warning(
+            "%d events with %s <= 0 clipped to 1 for log scale in %s",
+            n_clipped,
+            param,
+            file_name,
+        )
+    data[param] = data[param].clip(lower=1)
+    return data
+
+
+def _annotate_quadrants(ax, gate_stats):
+    """Add quadrant percentage labels in the four corners of *ax*."""
+    label_positions = {
+        "Q1": (0.95, 0.95),
+        "Q2": (0.05, 0.95),
+        "Q3": (0.05, 0.05),
+        "Q4": (0.95, 0.05),
+    }
+    for quad_name, position in label_positions.items():
+        percentage = gate_stats[f"{quad_name}_Percentage"]
+        ax.text(
+            position[0],
+            position[1],
+            f"{quad_name}\n{percentage:.1f}%",
+            horizontalalignment=(
+                "right" if "Q1" in quad_name or "Q4" in quad_name else "left"
+            ),
+            verticalalignment=(
+                "top" if "Q1" in quad_name or "Q2" in quad_name else "bottom"
+            ),
+            transform=ax.transAxes,
+            fontsize=6,
+            fontweight="bold",
+            color="red",
+        )
 
 
 def plot_scatter_with_manual_gates(
@@ -47,26 +89,8 @@ def plot_scatter_with_manual_gates(
         cleaned_data = cleaned_data.sample(n=1000000, random_state=42)
 
     # Handle non-positive values for log scale
-    if x_scale == "log":
-        n_clipped_x = (cleaned_data[x_param] <= 0).sum()
-        if n_clipped_x > 0:
-            logger.warning(
-                "%d events with %s <= 0 clipped to 1 for log scale in %s",
-                n_clipped_x,
-                x_param,
-                file_name,
-            )
-        cleaned_data[x_param] = cleaned_data[x_param].clip(lower=1)
-    if y_scale == "log":
-        n_clipped_y = (cleaned_data[y_param] <= 0).sum()
-        if n_clipped_y > 0:
-            logger.warning(
-                "%d events with %s <= 0 clipped to 1 for log scale in %s",
-                n_clipped_y,
-                y_param,
-                file_name,
-            )
-        cleaned_data[y_param] = cleaned_data[y_param].clip(lower=1)
+    cleaned_data = _clip_for_log_scale(cleaned_data, x_param, x_scale, file_name)
+    cleaned_data = _clip_for_log_scale(cleaned_data, y_param, y_scale, file_name)
 
     if scatter_type == "density":
         # Plot hexbin
@@ -100,18 +124,10 @@ def plot_scatter_with_manual_gates(
     ax.set_xscale(x_scale)
     ax.set_yscale(y_scale)
 
-    # Custom formatter function
-    def log_tick_formatter(x, pos):
-        return f"$10^{{{int(np.log10(x))}}}$"
-
     if x_scale == "log":
-        ax.xaxis.set_major_formatter(plt.FuncFormatter(log_tick_formatter))
-        ax.xaxis.set_major_locator(plt.LogLocator(numticks=6))
-        ax.xaxis.set_minor_locator(plt.LogLocator(subs="all", numticks=10))
+        apply_log_axis_formatting(ax, "x")
     if y_scale == "log":
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(log_tick_formatter))
-        ax.yaxis.set_major_locator(plt.LogLocator(numticks=6))
-        ax.yaxis.set_minor_locator(plt.LogLocator(subs="all", numticks=10))
+        apply_log_axis_formatting(ax, "y")
 
     if xlim:
         ax.set_xlim(xlim)
@@ -126,32 +142,8 @@ def plot_scatter_with_manual_gates(
         cleaned_data, x_param, y_param, quadrant_gates
     )
 
-    # Define positions for labels
-    label_positions = {
-        "Q1": (0.95, 0.95),
-        "Q2": (0.05, 0.95),
-        "Q3": (0.05, 0.05),
-        "Q4": (0.95, 0.05),
-    }
-
     # Add labels to corners
-    for quad_name, position in label_positions.items():
-        percentage = gate_stats[f"{quad_name}_Percentage"]
-        ax.text(
-            position[0],
-            position[1],
-            f"{quad_name}\n{percentage:.1f}%",
-            horizontalalignment=(
-                "right" if "Q1" in quad_name or "Q4" in quad_name else "left"
-            ),
-            verticalalignment=(
-                "top" if "Q1" in quad_name or "Q2" in quad_name else "bottom"
-            ),
-            transform=ax.transAxes,
-            fontsize=6,
-            fontweight="bold",
-            color="red",
-        )
+    _annotate_quadrants(ax, gate_stats)
 
     # Add quadrant lines
     ax.axvline(x_mid, color="red", linestyle="--", linewidth=1)

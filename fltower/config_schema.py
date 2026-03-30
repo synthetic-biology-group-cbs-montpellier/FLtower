@@ -35,6 +35,8 @@ class ScatterPlotConfig(BaseModel):
     gridsize: int = Field(default=100, gt=0)
     scatter_type: Literal["scatter", "density"] = "scatter"
     quadrant_gates: Union[QuadrantGates, Literal["auto"], None] = None
+    # "96well_plots" is the JSON key, but it's not a valid Python
+    # identifier (starts with a digit) → Pydantic alias
     well_plots: list[WellPlotSpec] = Field(default_factory=list, alias="96well_plots")
     triplicate_plots: list[WellPlotSpec] = Field(default_factory=list)
 
@@ -51,6 +53,8 @@ class HistogramPlotConfig(BaseModel):
     color: str = "blue"
     kde: bool = False
     gates: Union[list[list[float]], Literal["auto"], None] = None
+    # "96well_plots" is the JSON key, but it's not a valid Python
+    # identifier (starts with a digit) → Pydantic alias
     well_plots: list[WellPlotSpec] = Field(default_factory=list, alias="96well_plots")
     triplicate_plots: list[WellPlotSpec] = Field(default_factory=list)
 
@@ -88,7 +92,18 @@ class ParametersConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _wrap_raw_dict(cls, data):
-        """Accept the raw JSON dict and separate singlet_gate from plot configs."""
+        """Accept the raw JSON dict and separate singlet_gate from plot configs.
+
+        The raw parameters.json looks like::
+
+            {"singlet_gate": {...}, "scatter_BL1": {"type": "scatter", ...}, ...}
+
+        Pydantic needs the plot configs grouped under a ``configs`` key::
+
+            {"singlet_gate": {...}, "configs": {"scatter_BL1": {...}, ...}}
+
+        This validator performs that reshaping before validation starts.
+        """
         if isinstance(data, dict) and "configs" not in data:
             data = dict(data)  # copy to avoid mutating the original
             singlet_gate = data.pop("singlet_gate", None)

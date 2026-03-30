@@ -12,8 +12,6 @@ import time
 import warnings
 from datetime import datetime
 
-import pandas as pd
-
 from fltower.__version__ import __version__
 from fltower.core.pipeline import (  # noqa: F401 – re-exported for backward compat
     create_output_structure,
@@ -80,14 +78,6 @@ def setup_logging(verbose=False, quiet=False, log_file=None):
         logger.addHandler(file_handler)
 
 
-def process_fcs_files(directory, plots_config, results_directory):
-    """Process all FCS files through the analysis pipeline.
-
-    Delegates to :func:`fltower.core.pipeline.run_pipeline`.
-    """
-    return run_pipeline(directory, plots_config, results_directory)
-
-
 def main(command_line_arguments=None):
     """Main function of FLtower
 
@@ -102,10 +92,7 @@ def main(command_line_arguments=None):
     run_args = parse_run_args(command_line_arguments)
 
     # Setup logging (before any log call)
-    setup_logging(
-        verbose=getattr(run_args, "verbose", False),
-        quiet=getattr(run_args, "quiet", False),
-    )
+    setup_logging(verbose=run_args.verbose, quiet=run_args.quiet)
 
     logger.info(f"FLtower version: {__version__}")
 
@@ -120,16 +107,9 @@ def main(command_line_arguments=None):
         os.makedirs(results_directory, exist_ok=True)
         logger.info(f"Created results directory: {results_directory}")
 
-        # Add file handler now that results directory exists
+        # Re-init logging with a file handler now that the output dir exists
         log_file = os.path.join(results_directory, "fltower.log")
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(
-            logging.Formatter(
-                "%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S"
-            )
-        )
-        logger.addHandler(file_handler)
+        setup_logging(verbose=run_args.verbose, quiet=run_args.quiet, log_file=log_file)
         logger.debug(f"Log file: {log_file}")
 
         used_params = save_parameters(
@@ -137,7 +117,7 @@ def main(command_line_arguments=None):
         )
         logger.info(f"Save used parameters: {used_params}")
 
-        scatter_dfs, histogram_dfs, singlet_df, runtime = process_fcs_files(
+        scatter_dfs, histogram_dfs, singlet_df, runtime = run_pipeline(
             input_folder, plots_config, results_directory
         )
 
@@ -148,7 +128,7 @@ def main(command_line_arguments=None):
         logger.debug("Histogram Plot Statistics:")
         for plot_key, df in histogram_dfs.items():
             logger.debug(f"{plot_key} Statistics:\n{df}")
-        logger.debug(f"Singlet Statistics:\n{pd.DataFrame(singlet_df)}")
+        logger.debug(f"Singlet Statistics:\n{singlet_df}")
 
         # Compile summary report
         compile_summary_report(results_directory, plots_config)
@@ -169,7 +149,5 @@ def main(command_line_arguments=None):
         logger.info(f"Total script runtime: {total_runtime:.2f} seconds")
 
 
-if __name__ == "__main__":
-    main()
 if __name__ == "__main__":
     main()

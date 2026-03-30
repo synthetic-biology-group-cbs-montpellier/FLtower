@@ -1,12 +1,24 @@
-"""Pipeline orchestrator — composable steps for FCS processing.
+"""FCS analysis pipeline — 10 composable, independently testable steps.
 
-Replaces the monolithic ``process_fcs_files()`` with 10 named steps
-that share state through a :class:`PipelineContext` dataclass.
-Each step is independently testable.
+All steps share a single :class:`PipelineContext` object that carries
+inputs, intermediate data, and outputs through the following flow::
 
-Typical usage::
+    1. discover_files      find and sort .fcs files
+    2. prepare_config      parse parameters into typed fields
+    3. create_output       create the output directory tree
+    4. create_figures      initialise 96-well matplotlib grids
+    5. process_wells       read → gate → plot each well
+    6. fill_empty_wells    mark wells with no data
+    7. save_statistics     write per-well statistics CSVs
+    8. compute_triplicates aggregate triplicates, write CSVs + plots
+    9. save_figures        save plate PNGs + 96-well heatmaps
+   10. log_gating_summary  log per-gate efficiency table
 
-    result = run_pipeline(directory, plots_config, results_directory)
+Usage::
+
+    scatter_dfs, histogram_dfs, singlet_stats, runtime = run_pipeline(
+        directory, plots_config, results_directory
+    )
 """
 
 from __future__ import annotations
@@ -35,6 +47,13 @@ from fltower.io.export import (
     save_triplicate_stats_csv,
 )
 from fltower.io.fcs_reader import read_fcs
+from fltower.plotting._helpers import (
+    NUM_COLS,
+    NUM_ROWS,
+    add_plate_labels,
+    adjust_scatter_positions,
+    create_plate_grid,
+)
 from fltower.plotting.histogram import plot_histogram
 from fltower.plotting.plate_view import plot_96well_grid
 from fltower.plotting.scatter import plot_scatter_with_manual_gates
@@ -42,9 +61,6 @@ from fltower.plotting.singlet import plot_singlet_gate
 from fltower.plotting.triplicate import plot_triplicate_stats
 
 logger = logging.getLogger("fltower")
-
-NUM_ROWS = 8
-NUM_COLS = 12
 
 
 # ── Utility functions ────────────────────────────────────────────────
@@ -90,36 +106,40 @@ def make_plot_key(config):
 
 @dataclass
 class PipelineContext:
-    """Mutable state bag passed through every pipeline step."""
+    """Shared state passed through every pipeline step.
 
-    # Inputs
-    directory: str
-    plots_config: dict
-    results_directory: str
+    Construct it with the three required inputs, then call ``run_pipeline``
+    (or individual ``step_*`` functions for testing).
+    """
 
-    # Step 1 – discover
-    files: list = field(default_factory=list)
+    # ── Required inputs ─────────────────────────────────────────────────
+    directory: str  # Folder containing the .fcs files
+    plots_config: dict  # Full parameters.json content
+    results_directory: str  # Root folder for all outputs
 
-    # Step 2 – prepare config
-    plot_configs: dict = field(default_factory=dict)
-    singlet_lower: float = 0.7
-    singlet_upper: float = 2.0
+    # ── File discovery ──────────────────────────────────────────────────
+    files: list = field(default_factory=list)  # Sorted .fcs paths
 
-    # Step 3 – output dirs
-    output_dirs: dict = field(default_factory=dict)
+    # ── Parsed configuration ────────────────────────────────────────────
+    plot_configs: dict = field(default_factory=dict)  # Only the plot entries
+    singlet_lower: float = 0.7  # SSC-H/SSC-A lower bound
+    singlet_upper: float = 2.0  # SSC-H/SSC-A upper bound
 
-    # Step 4 – figures (plot_key → fig / axes)
-    figs: dict = field(default_factory=dict)
-    axes: dict = field(default_factory=dict)
-    fig_singlets: object = None
-    axes_singlets: object = None
+    # ── Output paths ────────────────────────────────────────────────────
+    output_dirs: dict = field(default_factory=dict)  # plots/, statistics/, …
 
-    # Step 5 – per-well accumulators
-    scatter_dfs: dict = field(default_factory=dict)
-    histogram_dfs: dict = field(default_factory=dict)
-    singlet_stats: list = field(default_factory=list)
-    gating_roots: list = field(default_factory=list)
-    wells_with_data: set = field(default_factory=set)
+    # ── Figures (one 96-well grid per plot config) ───────────────────────
+    figs: dict = field(default_factory=dict)  # plot_key → Figure
+    axes: dict = field(default_factory=dict)  # plot_key → axes array
+    fig_singlets: object = None  # Singlet gate Figure
+    axes_singlets: object = None  # Singlet gate axes array
+
+    # ── Per-well results ────────────────────────────────────────────────
+    scatter_dfs: dict = field(default_factory=dict)  # plot_key → [DataFrame]
+    histogram_dfs: dict = field(default_factory=dict)  # plot_key → [DataFrame]
+    singlet_stats: list = field(default_factory=list)  # One dict per well
+    gating_roots: list = field(default_factory=list)  # (well_key, GatingResult)
+    wells_with_data: set = field(default_factory=set)  # (row, col) of processed wells
 
 
 # ── Step 1: Discover FCS files ───────────────────────────────────────
@@ -165,61 +185,10 @@ def step_create_output(ctx: PipelineContext) -> None:
 # ── Step 4: Create matplotlib figures ─────────────────────────────────
 
 
-def _create_plate_grid():
-    """Create a (NUM_ROWS+1) × (NUM_COLS+1) subplot grid."""
-    return plt.subplots(
-        NUM_ROWS + 1,
-        NUM_COLS + 1,
-        figsize=(42, 28),
-        gridspec_kw={
-            "height_ratios": [0.5] + [1] * NUM_ROWS,
-            "width_ratios": [0.5] + [1] * NUM_COLS,
-        },
-    )
-
-
-def _add_plate_labels(ax):
-    """Add column (1–12) and row (A–H) labels to a plate grid."""
-    for col in range(1, NUM_COLS + 1):
-        ax[0, col].text(
-            0.5,
-            0.2,
-            str(col),
-            ha="center",
-            va="center",
-            fontweight="bold",
-            fontsize=18,
-        )
-        ax[0, col].axis("off")
-    for row in range(1, NUM_ROWS + 1):
-        ax[row, 0].text(
-            0.5,
-            0.5,
-            chr(64 + row),
-            ha="center",
-            va="center",
-            fontweight="bold",
-            fontsize=18,
-        )
-        ax[row, 0].axis("off")
-    ax[0, 0].axis("off")
-
-
-def _adjust_scatter_positions(ax):
-    """Nudge scatter subplot rows upward and enforce square aspect."""
-    for row in range(1, NUM_ROWS + 1):
-        for col in range(1, NUM_COLS + 1):
-            pos = ax[row, col].get_position()
-            pos.y0 += 0.02 * (row - 1)
-            pos.y1 += 0.02 * (row - 1)
-            ax[row, col].set_position(pos)
-            ax[row, col].set_aspect("equal", adjustable="box")
-
-
 def step_create_figures(ctx: PipelineContext) -> None:
     """Create all plate figure grids (singlet + one per plot config)."""
     # Singlet figure
-    fig_s, ax_s = _create_plate_grid()
+    fig_s, ax_s = create_plate_grid()
     fig_s.suptitle("Singlet Gates", fontsize=24, fontweight="bold", y=0.98)
     fig_s.subplots_adjust(hspace=0.1, wspace=0.4)
     ctx.fig_singlets = fig_s
@@ -232,7 +201,7 @@ def step_create_figures(ctx: PipelineContext) -> None:
             f"{config['type'].capitalize()} Plot: "
             f"{config['x_param']} vs {config.get('y_param', '')}"
         )
-        fig, ax = _create_plate_grid()
+        fig, ax = create_plate_grid()
         fig.suptitle(title, fontsize=24, fontweight="bold", y=0.95)
 
         if config["type"] == "scatter":
@@ -245,9 +214,9 @@ def step_create_figures(ctx: PipelineContext) -> None:
 
     # Labels, scatter adjustments, tight layout
     for plot_key in ctx.figs:
-        _add_plate_labels(ctx.axes[plot_key])
+        add_plate_labels(ctx.axes[plot_key])
         if "scatter" in plot_key:
-            _adjust_scatter_positions(ctx.axes[plot_key])
+            adjust_scatter_positions(ctx.axes[plot_key])
 
     for fig in ctx.figs.values():
         fig.tight_layout(rect=[0, 0, 1, 0.95])
@@ -255,47 +224,33 @@ def step_create_figures(ctx: PipelineContext) -> None:
 
 # ── Step 5: Process all wells ─────────────────────────────────────────
 
+# The following three helpers each handle one concern of per-well processing.
+# _process_single_well calls them in sequence and stays short and readable.
 
-def _process_single_well(file, ctx):
-    """Read one FCS file, apply gating, plot, and collect statistics.
 
-    Returns ``True`` on success, ``False`` if the file was skipped.
+def _apply_gating_for_well(file, ctx, row, col, well_key):
+    """Read one FCS file, apply gating, draw the singlet gate plot.
+
+    Returns the singlet-filtered DataFrame, or ``None`` if the file
+    could not be read.
     """
-    well_key, (row_letter, col_number) = extract_well_key(file)
-    row = ord(row_letter) - 64
-    col = col_number
-
-    if row > NUM_ROWS or col > NUM_COLS:
-        logger.warning(
-            "Skipping file %s with well key %s as it is out of the %dx%d grid.",
-            file,
-            well_key,
-            NUM_ROWS,
-            NUM_COLS,
-        )
-        return False
-
-    ctx.wells_with_data.add((row, col))
-
     data, _ = read_fcs(file)
     if data is None:
-        return False
+        return None
 
-    # Gating hierarchy
     gating_root = apply_gating_hierarchy(data, ctx.plots_config)
     ctx.gating_roots.append((well_key, gating_root))
+
     singlet_node = gating_root.children[0]
-    singlets = singlet_node.data
     logger.info(
-        "File: %s, Singlet percentage: %.2f%%, Total events: %d, Singlet events: %d",
+        "File: %s — singlet %.1f%% (%d / %d events)",
         file,
         singlet_node.percentage,
-        singlet_node.parent_events,
         singlet_node.gated_events,
+        singlet_node.parent_events,
     )
     ctx.singlet_stats.append({"Well": well_key, **singlet_node.stats})
 
-    # Singlet gate plot
     plot_singlet_gate(
         data,
         ax=ctx.axes_singlets[row, col],
@@ -304,77 +259,105 @@ def _process_single_well(file, ctx):
         singlet_upper=ctx.singlet_upper,
     )
 
-    # Per-config plots
+    return singlet_node.data  # gated singlets, ready for downstream analysis
+
+
+def _plot_scatter_for_well(singlets, config, well_key, ax, ctx, plot_key):
+    """Draw one scatter subplot and store its statistics in ctx."""
+    gate_stats = plot_scatter_with_manual_gates(
+        singlets,
+        config["x_param"],
+        config["y_param"],
+        well_key,
+        ax,
+        scatter_type=config.get("scatter_type", "scatter"),
+        cmap=config.get("cmap", "viridis"),
+        x_scale=config.get("x_scale", "linear"),
+        y_scale=config.get("y_scale", "linear"),
+        xlim=config.get("xlim"),
+        ylim=config.get("ylim"),
+        gridsize=config.get("gridsize", 100),
+        quadrant_gates=resolve_quadrant_gates(singlets, config),
+    )
+    if gate_stats is not None:
+        gate_stats["Well"] = well_key
+        ctx.scatter_dfs.setdefault(plot_key, []).append(pd.DataFrame([gate_stats]))
+
+
+def _plot_histogram_for_well(singlets, config, well_key, ax, ctx, plot_key):
+    """Draw one histogram subplot and store its statistics in ctx."""
+    stats = plot_histogram(
+        singlets,
+        config["x_param"],
+        well_key,
+        ax,
+        x_scale=config.get("x_scale", "linear"),
+        kde=config.get("kde", False),
+        color=config.get("color", "blue"),
+        xlim=config.get("xlim"),
+        gates=resolve_histogram_gates(singlets, config),
+    )
+    if stats is not None:
+        stats["Well"] = well_key
+        ctx.histogram_dfs.setdefault(plot_key, []).append(pd.DataFrame([stats]))
+
+
+def _process_single_well(file, ctx):
+    """Gate, plot, and collect statistics for one FCS file."""
+    well_key, (row_letter, col_number) = extract_well_key(file)
+    row = ord(row_letter) - 64  # A→1, B→2, …, H→8
+    col = col_number
+
+    if row > NUM_ROWS or col > NUM_COLS:
+        logger.warning(
+            "Skipping %s (well %s): outside the %dx%d grid.",
+            file,
+            well_key,
+            NUM_ROWS,
+            NUM_COLS,
+        )
+        return
+
+    ctx.wells_with_data.add((row, col))
+
+    singlets = _apply_gating_for_well(file, ctx, row, col, well_key)
+    if singlets is None:
+        return
+
     for config in ctx.plot_configs.values():
         plot_key = make_plot_key(config)
+        ax = ctx.axes[plot_key][row, col]
         if config["type"] == "scatter":
-            resolved_qgates = resolve_quadrant_gates(singlets, config)
-            ax = ctx.axes[plot_key][row, col]
-            gate_stats = plot_scatter_with_manual_gates(
-                singlets,
-                config["x_param"],
-                config["y_param"],
-                well_key,
-                ax,
-                scatter_type=config.get("scatter_type", "scatter"),
-                cmap=config.get("cmap", "viridis"),
-                x_scale=config.get("x_scale", "linear"),
-                y_scale=config.get("y_scale", "linear"),
-                xlim=config.get("xlim"),
-                ylim=config.get("ylim"),
-                gridsize=config.get("gridsize", 100),
-                quadrant_gates=resolved_qgates,
-            )
-            if gate_stats is not None:
-                gate_stats["Well"] = well_key
-                ctx.scatter_dfs.setdefault(plot_key, []).append(
-                    pd.DataFrame([gate_stats])
-                )
-
+            _plot_scatter_for_well(singlets, config, well_key, ax, ctx, plot_key)
         elif config["type"] == "histogram":
-            resolved_hgates = resolve_histogram_gates(singlets, config)
-            ax = ctx.axes[plot_key][row, col]
-            stats = plot_histogram(
-                singlets,
-                config["x_param"],
-                well_key,
-                ax,
-                x_scale=config.get("x_scale", "linear"),
-                kde=config.get("kde", False),
-                color=config.get("color", "blue"),
-                xlim=config.get("xlim"),
-                gates=resolved_hgates,
-            )
-            if stats is not None:
-                stats["Well"] = well_key
-                ctx.histogram_dfs.setdefault(plot_key, []).append(pd.DataFrame([stats]))
-
-    return True
+            _plot_histogram_for_well(singlets, config, well_key, ax, ctx, plot_key)
 
 
-def step_process_wells(ctx: PipelineContext) -> None:
-    """Iterate over all FCS files, processing each well."""
-    console_level = logging.INFO
+def _is_quiet_mode() -> bool:
+    """Return True when the console log level suppresses INFO messages."""
     for h in logger.handlers:
         if isinstance(h, logging.StreamHandler) and not isinstance(
             h, logging.FileHandler
         ):
-            console_level = h.level
-            break
+            return h.level >= logging.WARNING
+    return False
 
-    total = len(ctx.files) * (len(ctx.plot_configs) + 1)
+
+def step_process_wells(ctx: PipelineContext) -> None:
+    """Iterate over all FCS files, processing each well."""
+    total_plots = len(ctx.files) * (len(ctx.plot_configs) + 1)
     with tqdm(
-        total=total,
+        total=total_plots,
         desc="Processing files",
         unit="plot",
         file=sys.stdout,
-        disable=console_level >= logging.WARNING,
+        disable=_is_quiet_mode(),
     ) as pbar:
         for file in ctx.files:
             try:
                 _process_single_well(file, ctx)
             except Exception as e:
-                logger.error(f"Error processing file {file}: {e}")
+                logger.error("Error processing file %s: %s", file, e)
             pbar.update(1)
 
 
@@ -421,6 +404,16 @@ def step_save_statistics(ctx: PipelineContext) -> None:
 # ── Step 8: Compute triplicates ───────────────────────────────────────
 
 
+def _get_stats_df(ctx: PipelineContext, config: dict):
+    """Return the accumulated statistics DataFrame for a plot config."""
+    plot_key = make_plot_key(config)
+    return (
+        ctx.scatter_dfs[plot_key]
+        if config["type"] == "scatter"
+        else ctx.histogram_dfs[plot_key]
+    )
+
+
 def step_compute_triplicates(ctx: PipelineContext) -> None:
     """Calculate triplicate statistics and generate triplicate plots."""
     triplicate_stats_dir = ctx.output_dirs["triplicate_stats"]
@@ -431,11 +424,7 @@ def step_compute_triplicates(ctx: PipelineContext) -> None:
         if "triplicate_plots" not in config:
             continue
 
-        df = (
-            ctx.scatter_dfs[plot_key]
-            if config["type"] == "scatter"
-            else ctx.histogram_dfs[plot_key]
-        )
+        df = _get_stats_df(ctx, config)
 
         for plot_spec in config["triplicate_plots"]:
             metric = plot_spec["metric"]
@@ -507,11 +496,7 @@ def step_save_figures(ctx: PipelineContext) -> None:
         if "96well_plots" not in config:
             continue
 
-        df = (
-            ctx.scatter_dfs[plot_key]
-            if config["type"] == "scatter"
-            else ctx.histogram_dfs[plot_key]
-        )
+        df = _get_stats_df(ctx, config)
         for plot_spec in config["96well_plots"]:
             metric = plot_spec["metric"]
             title = plot_spec["title"]
@@ -576,19 +561,19 @@ def run_pipeline(directory, plots_config, results_directory):
         results_directory=results_directory,
     )
 
-    step_discover_files(ctx)  # 1
+    step_discover_files(ctx)  # 1 · find and sort .fcs files
     if not ctx.files:
         return {}, {}, [], time.time() - start_time
 
-    step_prepare_config(ctx)  # 2
-    step_create_output(ctx)  # 3
-    step_create_figures(ctx)  # 4
-    step_process_wells(ctx)  # 5
-    step_fill_empty_wells(ctx)  # 6
-    step_save_statistics(ctx)  # 7
-    step_compute_triplicates(ctx)  # 8
-    step_save_figures(ctx)  # 9
-    step_log_gating_summary(ctx)  # 10
+    step_prepare_config(ctx)  # 2 · parse singlet thresholds + plot types
+    step_create_output(ctx)  # 3 · create output directory tree
+    step_create_figures(ctx)  # 4 · initialise 96-well matplotlib grids
+    step_process_wells(ctx)  # 5 · read → gate → plot each well
+    step_fill_empty_wells(ctx)  # 6 · mark wells with no data
+    step_save_statistics(ctx)  # 7 · write per-well statistics CSVs
+    step_compute_triplicates(ctx)  # 8 · aggregate triplicates, write CSVs
+    step_save_figures(ctx)  # 9 · save plate PNGs + 96-well heatmaps
+    step_log_gating_summary(ctx)  # 10 · log per-gate efficiency table
 
     return (
         ctx.scatter_dfs,
